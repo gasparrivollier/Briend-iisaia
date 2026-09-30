@@ -50,6 +50,16 @@ compose.prod.yaml        stack de producción
 
 Requisitos: [uv](https://docs.astral.sh/uv/), Node 22+ y Docker o Podman con compose. Todo se ejecuta desde `tp-final/`.
 
+### Forma rápida
+
+```bash
+uv run scripts/dev.py
+```
+
+Levanta `db`/`mailpit` (detecta Docker o Podman compose automáticamente), corre `init-db` y arranca la API y el frontend en un solo proceso, con los logs prefijados `[api]`/`[web]`. Ctrl+C detiene la API y el frontend pero deja los contenedores corriendo (pasar `--down` para bajarlos también; `--reinstall` fuerza `npm install`; `--skip-compose` si `db`/`mailpit` ya están arriba). Funciona igual en Windows y Linux. Es solo un wrapper de los pasos manuales de abajo — `scripts/dev.py` es legible y no esconde nada; si algo falla, seguir el camino manual ayuda a aislar el problema.
+
+### Manual, paso a paso
+
 ```bash
 # 1. Base de datos (Postgres en localhost:5432) y Mailpit (http://localhost:8025)
 docker compose up -d db mailpit          # o: podman compose up -d db mailpit
