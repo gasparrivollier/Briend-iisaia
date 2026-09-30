@@ -7,13 +7,14 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run",
+    "test": "TZ=America/Argentina/Buenos_Aires vitest run",
     "test:e2e": "playwright test",
     "gen:api": "uv run --project ../backend python -m pulso.openapi > openapi.json && openapi-typescript openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@tanstack/vue-query": "^5.103.2",
     "bootstrap": "^5.3.8",
+    "frappe-gantt": "1.2.2",
     "openapi-fetch": "^0.17.0",
     "pinia": "^4.0.3",
     "vue": "^3.5.43",

@@ -7,7 +7,7 @@ Herramienta de project management
 
 - Cargas masivas (batch): Pending.
 - Reporting: Pending
-- Planificacion Gantt: Pending.
+- Planificacion Gantt: Done (tareas por proyecto; sin dependencias ni vínculo con consumos).
 - Alertas (Notificaciones mail): Pending.
 - Proyecciones: Pending
 - Desvios: PEnding.

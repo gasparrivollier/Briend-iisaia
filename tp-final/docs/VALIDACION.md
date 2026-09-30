@@ -1,5 +1,43 @@
 # Validación
 
+## Planificación Gantt (2026-09-30)
+
+### Automatizada
+
+- **Backend:** **101 pruebas aprobadas** (6 nuevas en `tests/test_tasks.py`):
+  - CRUD de tareas; lectura para todos, ordenadas por fecha de inicio;
+  - permisos (usuario común → 403, responsable del proyecto y administrador → OK), 403 antes que 400, 404 de proyecto y tarea;
+  - validaciones en español (nombre vacío, avance fuera de rango o booleano, fechas invertidas o inválidas, responsable inexistente);
+  - fechas de la tarea dentro del proyecto, achicar un proyecto dejando tareas afuera (400) y borrar un proyecto con tareas (409);
+  - la prueba de migraciones confirma que `0003_tareas` coincide con los modelos.
+  - `ruff check` y `ruff format --check` sin observaciones.
+- **Frontend:** `vue-tsc` sin errores, `vite build` correcto, `gen:api` estable (sin diferencias al regenerar) y Vitest con **16 pruebas aprobadas**. `gantt.spec.ts` corre con `TZ=America/Argentina/Buenos_Aires` y verifica que el TZ esté activo. Cubre el escape de la etiqueta de la barra, el popup escapado una sola vez, las fechas inclusivas y su vuelta como fecha local (el bug de `toISOString` en UTC-3), y las clases en curso, terminada y atrasada.
+- **E2E:** **6 pruebas aprobadas**, tres corridas seguidas. El caso nuevo es "project owner plans tasks on the Gantt":
+  - rango inválido → mensaje de la API;
+  - nombre con HTML mostrado como texto;
+  - arrastre → aviso y tabla coinciden, se conserva la duración y hay **un solo `PUT` por arrastre**;
+  - arrastre antes del inicio del proyecto → error de la API y la barra vuelve a su lugar;
+  - `/tareas/999/editar` muestra el error en lugar de quedar cargando.
+
+### Manual
+
+- **Build de producción** (`vite preview`) con la CSP exacta de `deploy/Caddyfile` inyectada en el navegador: sin violaciones ni errores de consola. El arrastre del borde de avance hizo un solo `PUT` (70 %) y actualizó la tabla.
+- **Capturas:** como administrador (acciones de edición) y como usuario sin permisos (0 botones de alta, todo "Solo lectura"). Las vistas Semana y Mes abren en la primera tarea.
+- **Base de desarrollo:** migrada con `init-db` a `0003 (head)`.
+
+### Problemas encontrados y corregidos
+
+- El `exports` de frappe-gantt oculta su CSS: se resolvió con un alias en `vite.config.ts`.
+- El CSS de la librería se carga después del propio y pisaba los colores: se subió la especificidad.
+- El constructor de frappe-gantt deja un listener en `document`: el gráfico se crea una vez por montaje y se refresca conservando el scroll.
+- Un arrastre enviaba un `PUT` por cada día cruzado y podía guardar fechas intermedias: se acumula y se emite al soltar.
+- El formulario quedaba en "Cargando…" para una tarea inexistente.
+
+### Sin verificar
+
+- El stack completo de producción (Caddy + imágenes) no se levantó en esta etapa. La CSP se verificó inyectándola en el navegador sobre el build.
+- Arrastrar en pantallas táctiles no está soportado por frappe-gantt.
+
 ## Replataforma FastAPI + Vue + PostgreSQL (2026-09-23)
 
 ### Automatizada

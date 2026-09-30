@@ -98,6 +98,10 @@ def identifier(value: Any) -> int:
         raise fail(BAD_REFERENCE) from None
 
 
+def optional_identifier(value: Any) -> int | None:
+    return None if value is None or value == '' else identifier(value)
+
+
 def iso_date(value: Any) -> date:
     if isinstance(value, date):
         return value
@@ -127,6 +131,7 @@ Password = Annotated[str, BeforeValidator(raw_text)]
 Hours = Annotated[float, BeforeValidator(positive_hours)]
 Percentage = Annotated[float, BeforeValidator(percentage)]
 Id = Annotated[int, BeforeValidator(identifier)]
+OptionalId = Annotated[int | None, BeforeValidator(optional_identifier)]
 IsoDate = Annotated[date, BeforeValidator(iso_date)]
 Flag = Annotated[bool, BeforeValidator(flag)]
 Status = Annotated[str, BeforeValidator(status)]
@@ -171,6 +176,12 @@ class ConsumoIn(DateRange):
     horas_consumidas: Hours
     tarea: Text
     rol_id: Id
+
+
+class TareaIn(DateRange):
+    tarea_nombre: Text
+    porcentaje_avance: Percentage
+    recurso_id: OptionalId = None  # optional assignee
 
 
 class RecursoIn(BaseModel):
@@ -254,6 +265,17 @@ class ConsumoListado(ConsumoOut):
     proyecto_nombre: str
     recurso_nombre: str
     rol_descripcion: str
+
+
+class TareaOut(Out):
+    tarea_id: int
+    proyecto_id: int
+    tarea_nombre: str
+    fecha_inicio: date
+    fecha_fin: date
+    porcentaje_avance: float
+    recurso_id: int | None
+    recurso_nombre: str | None
 
 
 class ProyectoDetalle(BaseModel):

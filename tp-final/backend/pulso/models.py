@@ -91,6 +91,29 @@ class Consumo(Base):
     rol_id: Mapped[int] = mapped_column(ForeignKey('rol.rol_id', ondelete='RESTRICT'), index=True)
 
 
+class Tarea(Base):
+    """Planned task of a project (Gantt). Its dates must fall inside the project's (checked by the API)."""
+
+    __tablename__ = 'tarea'
+    __table_args__ = (
+        CheckConstraint('length(trim(tarea_nombre)) > 0', name='tarea_nombre_no_vacio'),
+        CheckConstraint('fecha_fin >= fecha_inicio', name='tarea_fechas'),
+        CheckConstraint('porcentaje_avance BETWEEN 0 AND 100', name='tarea_avance'),
+    )
+
+    tarea_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    proyecto_id: Mapped[int] = mapped_column(
+        ForeignKey('proyecto.proyecto_id', ondelete='RESTRICT'), index=True
+    )
+    tarea_nombre: Mapped[str] = mapped_column(Text)
+    fecha_inicio: Mapped[date] = mapped_column(Date)
+    fecha_fin: Mapped[date] = mapped_column(Date)
+    porcentaje_avance: Mapped[float] = mapped_column(Double, default=0, server_default='0')
+    recurso_id: Mapped[int | None] = mapped_column(
+        ForeignKey('recurso.recurso_id', ondelete='RESTRICT'), index=True, nullable=True
+    )
+
+
 class Sesion(Base):
     """Server-side browser session. Anonymous sessions (recurso_id NULL) carry the CSRF token before login."""
 

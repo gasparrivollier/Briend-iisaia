@@ -7,6 +7,7 @@ export type Schemas = components['schemas']
 export type User = Schemas['UsuarioOut']
 export type Project = Schemas['ProyectoResumen']
 export type Consumption = Schemas['ConsumoListado']
+export type Task = Schemas['TareaOut']
 
 export class APIError extends Error {
   constructor(
@@ -84,6 +85,15 @@ export const api = {
       : call(http.POST('/api/proyectos', { body })),
   deleteProject: (identifier: number) =>
     call(http.DELETE('/api/proyectos/{identifier}', { ...id(identifier), body: {} as never })),
+
+  tasks: (project: number) => call(http.GET('/api/proyectos/{identifier}/tareas', id(project))),
+  task: (identifier: number) => call(http.GET('/api/tareas/{identifier}', id(identifier))),
+  createTask: (project: number, body: Schemas['TareaIn']) =>
+    call(http.POST('/api/proyectos/{identifier}/tareas', { ...id(project), body })),
+  updateTask: (identifier: number, body: Schemas['TareaIn']) =>
+    call(http.PUT('/api/tareas/{identifier}', { ...id(identifier), body })),
+  deleteTask: (identifier: number) =>
+    call(http.DELETE('/api/tareas/{identifier}', { ...id(identifier), body: {} as never })),
 
   consumptions: () => call(http.GET('/api/consumos')),
   consumption: (identifier: number) => call(http.GET('/api/consumos/{identifier}', id(identifier))),
