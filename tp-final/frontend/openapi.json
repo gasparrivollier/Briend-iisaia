@@ -371,6 +371,227 @@
         }
       }
     },
+    "/api/proyectos/{identifier}/tareas": {
+      "get": {
+        "tags": [
+          "tareas"
+        ],
+        "summary": "Index",
+        "operationId": "index_api_proyectos__identifier__tareas_get",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TareaOut"
+                  },
+                  "title": "Response Index Api Proyectos  Identifier  Tareas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tareas"
+        ],
+        "summary": "Create",
+        "operationId": "create_api_proyectos__identifier__tareas_post",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TareaIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TareaOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tareas/{identifier}": {
+      "get": {
+        "tags": [
+          "tareas"
+        ],
+        "summary": "Detail",
+        "operationId": "detail_api_tareas__identifier__get",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TareaOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "tareas"
+        ],
+        "summary": "Update",
+        "operationId": "update_api_tareas__identifier__put",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TareaIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TareaOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tareas"
+        ],
+        "summary": "Remove",
+        "operationId": "remove_api_tareas__identifier__delete",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Identifier"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/consumos": {
       "get": {
         "tags": [
@@ -1536,6 +1757,111 @@
           "csrf_token"
         ],
         "title": "SesionOut"
+      },
+      "TareaIn": {
+        "properties": {
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Fin"
+          },
+          "tarea_nombre": {
+            "type": "string",
+            "title": "Tarea Nombre"
+          },
+          "porcentaje_avance": {
+            "type": "number",
+            "title": "Porcentaje Avance"
+          },
+          "recurso_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurso Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fecha_inicio",
+          "fecha_fin",
+          "tarea_nombre",
+          "porcentaje_avance"
+        ],
+        "title": "TareaIn"
+      },
+      "TareaOut": {
+        "properties": {
+          "tarea_id": {
+            "type": "integer",
+            "title": "Tarea Id"
+          },
+          "proyecto_id": {
+            "type": "integer",
+            "title": "Proyecto Id"
+          },
+          "tarea_nombre": {
+            "type": "string",
+            "title": "Tarea Nombre"
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Fin"
+          },
+          "porcentaje_avance": {
+            "type": "number",
+            "title": "Porcentaje Avance"
+          },
+          "recurso_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurso Id"
+          },
+          "recurso_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurso Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tarea_id",
+          "proyecto_id",
+          "tarea_nombre",
+          "fecha_inicio",
+          "fecha_fin",
+          "porcentaje_avance",
+          "recurso_id",
+          "recurso_nombre"
+        ],
+        "title": "TareaOut"
       },
       "UsuarioOut": {
         "properties": {

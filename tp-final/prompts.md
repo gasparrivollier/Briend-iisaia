@@ -218,3 +218,144 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 2. Se inició el servidor de desarrollo de Vite en segundo plano (`npx vite --host 127.0.0.1 --port 5173`). Se verificó `/proyectos` → 200 y `/api/session` respondiendo a través del proxy de Vite.
 3. Se confirmó que las instrucciones para levantar la app localmente están en la sección "Desarrollo local" de `tp-final/README.md` (y, en inglés, en el `CLAUDE.md` local).
 4. Se detectó un hueco en la documentación: `import-sqlite` exige una base vacía, pero el flujo de desarrollo corre `init-db` primero (que crea el admin), así que la importación de los datos anteriores se niega. Se informó al usuario y se ofreció resolverlo.
+
+## Sesión 2026-09-30 — Planificación del Gantt (rama `feat-gantt-chart`)
+
+### Prompt 5 — Planificar la funcionalidad Gantt
+
+> let's plan on adding a gantt chart feature to this application.
+
+**Acciones:**
+
+1. Se registró este prompt antes de empezar.
+2. Se leyeron `docs/PLAN.md` (decisión previa: componente propio `<ProjectGantt>` que envuelve SVAR Gantt o frappe-gantt; Gantt es el 3.º ítem de la Fase 5), `FEATURE_PLAN.md` ("Planificacion Gantt: Pending"), `docs/ESPECIFICACION.md` ("tareas, dependencias y vínculo opcional de consumos con tareas"), `backend/pulso/models.py`, las rutas de `routers/projects.py`, `frontend/package.json`, `frontend/src/router.ts` y la matriz de permisos del README.
+3. Hallazgo: el modelo actual no tiene tareas planificadas; solo `proyecto` (fechas, horas, avance) y `consumo` (horas reales con un texto libre `tarea`). Un Gantt con tareas y dependencias requiere tablas nuevas y una migración Alembic 0003.
+4. Preguntas al usuario (AskUserQuestion) y respuestas:
+   - Alcance → **"Tasks + deps, staged"**: tareas y dependencias en entregas incrementales (portafolio → tareas → dependencias → vínculo consumo↔tarea).
+   - Librería → **frappe-gantt**, envuelta en `<ProjectGantt>`.
+   - Permisos → **responsable + administrador** editan; todos consultan.
+5. Se consultó al advisor, que recomendó dejar el plan en `docs/PLAN.md` (en castellano), registrar el desvío del orden de la Fase 5, definir las reglas de borrado, fechas y avance, y verificar frappe-gantt en vez de recordarlo.
+6. Verificación de frappe-gantt (se bajó con `npm pack frappe-gantt@1.2.2` al scratchpad y se leyó `src/`):
+   - versión 1.2.2 MIT y sin tipos TS;
+   - la fecha de fin sin hora es inclusiva, como en el backend;
+   - eventos `click`, `date_change`, `progress_change` y `view_change`;
+   - **la etiqueta de la barra y el popup por defecto usan `innerHTML` con `task.name`, un riesgo XSS**, así que el plan exige escapar los nombres y usar un popup propio;
+   - no inserta `<style>`, por lo que en principio es compatible con la CSP de `deploy/Caddyfile`, aunque se debe verificar en el stack de producción.
+7. Se agregó a `docs/PLAN.md` la sección "Plan de planificación Gantt (2026-09-30)": motivo, decisiones, hechos verificados, modelo (`tarea`, `dependencia`, `consumo.tarea_id`), reglas de negocio con defaults propuestos, API, frontend, 5 entregas, pruebas y documentación. No se modificó código.
+8. Revisión final (advisor). Se verificaron en el código fuente de frappe-gantt y se incorporaron al plan:
+   - `date_utils.parse` crea fechas locales, así que se prohíbe `toISOString()` al volver (daría un día de más en UTC-3) y las pruebas Vitest corren con `TZ=America/Argentina/Buenos_Aires`;
+   - `move_dependencies` es `true` por defecto y al soltar dispara un `date_change` por cada barra movida, por lo que se decide `move_dependencies: false`;
+   - frappe dibuja una barra por fila, así que se quitan `primer_consumo` y `ultimo_consumo` de la entrega 1, que queda sin cambios de API;
+   - el popup escapa solo `raw_name`, para no escapar dos veces;
+   - las reglas de fechas y ciclos usan `SELECT … FOR UPDATE` sobre `proyecto`;
+   - se agrega una prueba para "achicar el proyecto con tareas afuera" y `language: 'es'`.
+9. Quedan para que el usuario confirme dos defaults que cambian endpoints existentes: un proyecto con tareas no se puede borrar (409), y editar las fechas de un proyecto puede dar 400 si deja tareas afuera. No se escribió código ni se hizo commit.
+
+### Prompt 6 — Confirmación de los defaults
+
+> confirming this.
+
+**Acciones:**
+
+1. Se tomó como confirmación de los dos defaults propuestos (409 al borrar un proyecto con tareas; 400 al achicar las fechas de un proyecto dejando tareas afuera) y como visto bueno para empezar la entrega 1 (portafolio).
+2. **Entrega 1 — portafolio Gantt** (sin cambios de API ni de base):
+   - `npm install frappe-gantt@1.2.2`.
+   - Archivos nuevos: `src/types/frappe-gantt.d.ts` (tipos mínimos); `src/gantt.ts` (`projectBars`, que escapa `name` y conserva `raw_name`; `popup` con `textContent`; `toISODate` con fecha local); `src/components/ProjectGantt.vue` (único lugar que importa la librería: `move_dependencies: false`, `language: 'es'`, `popup_on: 'hover'`, selector Día/Semana/Mes, emite `select`); `src/views/PlanningView.vue` (`/planificacion`, de solo lectura; el clic abre el proyecto).
+   - Archivos modificados: `router.ts` (ruta `planning`), `AppHeader.vue` (enlace "Planificación"), `main.css` (paleta y colores por estado), `package.json` (`npm test` con `TZ=America/Argentina/Buenos_Aires`), `vite.config.ts` (alias del CSS).
+   - Pruebas: `tests/unit/gantt.spec.ts` (5 casos: comprueba que el TZ esté activo, el escape de la etiqueta, el popup escapado una sola vez, el mapeo de fechas, estados y avance, y la vuelta de fecha local contra el bug de `toISOString`), más un caso Playwright en `e2e/flows.spec.ts` (etiqueta `Portal <b>clientes</b>` como texto, clase por estado, popup y clic → detalle, sin errores de página).
+3. Fallas encontradas y corregidas:
+   - El primer e2e falló porque la vista no cargaba. `vite build` mostró que `frappe-gantt/dist/frappe-gantt.css` no está exportado.
+   - Probar `@import 'frappe-gantt'` en CSS resolvió al JS (la condición `import` gana a `style`). Se resolvió con un alias en `vite.config.ts`.
+   - El CSS de la librería se carga después de `main.css` y le ganaba a los colores por estado, así que se subió la especificidad.
+4. Verificación de CSP: se levantaron `vite preview` del build y una API aislada en :5001, y con Playwright se inyectó la CSP exacta de `deploy/Caddyfile`. Se crearon 4 proyectos (uno con el nombre `Portal <b>clientes</b> & R&D`): 4 barras, **0 violaciones de CSP, 0 errores de consola**. Las capturas (en el scratchpad) mostraron que la vista Semana abría en meses vacíos y que el botón "Today" estaba en inglés. Se pasó a Mes por defecto, `scroll_to: 'today'` y `today_button: false`.
+5. Resultados: `npm test` 15/15, `npm run typecheck` ok, `vite build` ok, `playwright test` 6/6. Se detuvieron los servidores temporales. Se actualizó `docs/PLAN.md` (entrega 1 ✔ y el hallazgo del `exports`). No se hizo commit.
+6. Revisión (advisor). Pidió verificar en frappe-gantt si hay listeners globales y qué hace `refresh()`, antes de la entrega 2:
+   - `index.js:1346` agrega un `mouseup` a `document` en `bind_bar_events` (que solo corre en el constructor) y nunca lo quita, así que recrear el gráfico en cada cambio perdía memoria. `refresh()` llama a `change_view_mode()` sin `maintain_pos`, lo que vuelve el scroll a hoy.
+   - Cambio en `ProjectGantt.vue`: el gráfico se crea una vez por montaje; las actualizaciones usan `setup_tasks` + `change_view_mode(vista, true)` y ajustan `options.readonly`. El host usa `v-show` y el watcher corre con `flush: 'post'`, para que el gráfico no se construya dentro de un elemento oculto.
+   - Verificación en el build de producción: vista vacía → se crea un proyecto → refetch → 1 barra; scroll en 300 → se crea otro → refetch → 2 barras, 1 solo SVG, scroll conservado en 300, sin errores. En el primer intento el refetch no se disparó porque se despachó `visibilitychange` sobre `document`, cuando TanStack escucha en `window`. Era un error del script de prueba, no de la app.
+   - Se fijó `frappe-gantt` en `"1.2.2"` (sin `^`).
+   - Se repitió todo: typecheck ok, Vitest 15/15, Playwright 6/6, build ok. `PLAN.md` quedó actualizado. No se hizo commit.
+
+### Prompt 7 — ¿Está levantada la app?
+
+> Is app up? to see it working
+
+**Acciones:**
+
+1. Se comprobó el estado: la API de desarrollo (:5000) y Vite (:5173) no estaban corriendo; solo los contenedores `db` y `mailpit`.
+2. Se corrió `init-db` (idempotente: "Base inicializada.") y se iniciaron en segundo plano `uvicorn pulso.asgi:app --reload --port 5000` (con un `SECRET_KEY` aleatorio) y `npx vite --host 127.0.0.1 --port 5173`. Verificación: `/api/health` → ok a través de Vite y `/planificacion` → 200.
+3. Hallazgo: la base de desarrollo tiene 0 proyectos, y el admin ya cambió su contraseña (el asistente no la conoce). El Gantt se verá vacío hasta cargar proyectos. Se ofreció cargar datos de ejemplo, sin hacerlo sin permiso.
+
+### Prompt 8 — Alcance de la vista Planificación
+
+> o sea esto muestra todos los proyectos?
+
+**Acciones:**
+
+1. Se respondió a partir de `PlanningView.vue`: llama a `api.projects({})` sin filtros, así que muestra todos los proyectos, a todos los usuarios (misma regla de lectura que la lista de Proyectos). Están ordenados por fecha de inicio, una barra por proyecto. Todavía no muestra tareas (eso llega en la entrega 2, en el detalle de cada proyecto). Se ofreció sumar los filtros de estado y responsable. No se modificó código.
+
+### Prompt 9 — El Gantt va dentro de cada proyecto
+
+> No. la idea es que el gantt se acceda desde un proyecto especifico y que se peudan ver las tareas dentro del mismo. No un gantt que muestre todos los proyectos.
+
+**Acciones:**
+
+1. Decisión del usuario: se descarta la vista general `/planificacion`. El Gantt vive en el detalle de cada proyecto y muestra sus tareas. Se retira la vista (ruta, enlace del menú, vista y caso e2e), se reutilizan `ProjectGantt.vue` y `gantt.ts` para las tareas, y se pasa a la entrega 2 del plan.
+2. **Retiro de la vista general:** se eliminaron `PlanningView.vue`, la ruta `/planificacion`, el enlace del menú y su caso e2e.
+3. **Entrega 2 — tareas (backend):**
+   - `models.py`: modelo `Tarea` (FK a proyecto RESTRICT, responsable opcional, checks de nombre, fechas y avance).
+   - Migración `0003_tareas.py`.
+   - `schemas.py`: `OptionalId` (acepta `''`/`null`), `TareaIn` y `TareaOut`.
+   - Router nuevo `routers/tasks.py`: `GET/POST /api/proyectos/{id}/tareas`, `GET/PUT/DELETE /api/tareas/{id}`. Permisos con `editable_project` y la dependencia nueva `editable_task`, ambas antes del cuerpo. La regla de fechas dentro del proyecto toma `SELECT … FOR UPDATE` sobre `proyecto`.
+   - `projects.py`: editar el proyecto con tareas fuera del nuevo rango → 400, con el mismo bloqueo. Borrar un proyecto con tareas → 409 (lo da la FK RESTRICT y el handler de `IntegrityError` que ya existía).
+   - `conftest.py`: `tarea` agregada al `TRUNCATE`.
+   - `tests/test_tasks.py` (6 pruebas): CRUD y lectura para todos, permisos y 403 antes que 400, validaciones, fechas dentro del proyecto, achicar el proyecto, borrado 409.
+   - Resultado: **101 passed**; ruff ok.
+4. **Entrega 2 — frontend:**
+   - `npm run gen:api` (sin drift al regenerar); en `client.ts`, el tipo `Task` y `tasks`/`task`/`createTask`/`updateTask`/`deleteTask`.
+   - `gantt.ts`: `taskBars` (id `tarea-N` porque frappe usa el id en selectores CSS, `ref_id` numérico, clases `gantt-open`/`gantt-done`/`gantt-late`, detalle con responsable).
+   - `ProjectGantt.vue`: emite `move`/`progress`/`open`; `open` con doble clic; `defineExpose({ reset })` para deshacer un arrastre rechazado; abre en la primera tarea.
+   - `TaskPlan.vue` nuevo: sección "Planificación" con el Gantt, leyenda y tabla, y guardado del arrastre con un `PUT`.
+   - `TaskFormView.vue` nuevo: rutas `/proyectos/:id/tareas/nueva` y `/tareas/:id/editar`, fechas con min/max del proyecto, responsable opcional.
+   - `ProjectDetailView.vue` incluye `TaskPlan`; CSS de estados y `pointer-events:none` en el popup.
+   - Pruebas: `gantt.spec.ts` reescrito (6 casos) y un e2e "project owner plans tasks on the Gantt" (rango inválido → mensaje de la API, nombre con HTML como texto, arrastre → aviso y tabla coinciden y se conserva la duración).
+5. **Fallas en el camino:**
+   - El e2e del arrastre falló varias veces. Primero se asumía un desplazamiento exacto de 2 días, pero frappe redondea según su cálculo con `offsetX`, así que la aserción pasó a ser robusta. Después se medía la barra durante la animación del cambio de escala, y se agregó una espera a que la geometría quede estable.
+   - Se sospechó que el popup en hover tapaba el arrastre y se agregó `pointer-events:none` (se conserva como protección). La causa real, encontrada al registrar los eventos del mouse, era que la barra quedaba fuera del viewport de 720 px y `page.mouse` no hace scroll; se resolvió con `scrollIntoViewIfNeeded`.
+   - Luego pasó 3 veces seguidas: 6/6.
+6. **Revisión visual** en un stack aislado (:5001/:5174) con 5 tareas, como admin y como un usuario sin permisos. El usuario sin permisos ve todo en solo lectura (0 enlaces "+ Nueva tarea", 5 "Solo lectura") y no hubo errores de página. Se encontró que el diagrama abría un mes antes del proyecto; se pasó a `scroll_to` = inicio de la primera tarea.
+7. **Base de desarrollo:** `init-db` aplicó la migración (`alembic current` → `0003 (head)`). La API en :5000 (con `--reload`) ya expone `/api/proyectos/{id}/tareas`.
+8. **Verificación final:** pytest 101, ruff ok, typecheck ok, Vitest 16/16, build ok, Playwright 6/6 (3 corridas). `PLAN.md` actualizado. No se hizo commit.
+9. **Revisión (advisor)** y correcciones:
+   - `TaskFormView` quedaba en "Cargando…" para una tarea inexistente: la consulta del proyecto queda deshabilitada y pendiente si la de la tarea da 404. Se cambió `loading` a `catalogs || (id && existing) || (projectId && project)`, igual que `ProjectFormView`. El e2e ahora abre `/tareas/999/editar` y espera "No se pudo cargar la página".
+   - Se agregó al e2e el arrastre rechazado (antes del inicio del proyecto): alerta de la API, la tabla conserva lo guardado y la barra vuelve a su `x`.
+   - **Bug real encontrado al registrar los `PUT`:** un arrastre enviaba un `PUT` por cada día cruzado (2 en el primero; 3 en el segundo, el último rechazado con 400 después de guardar fechas intermedias, lo que dejaba la tarea en 09-01). Causa: frappe llama a `date_changed()` en cada `mousemove`. Arreglo en `ProjectGantt.vue`: se guarda el último cambio por barra y se emite un solo `move` en el `mouseup` del documento. El e2e verifica 1 `PUT` por arrastre. El supuesto del plan ("`move_dependencies: false` ⇒ un arrastre, un `PUT`") era falso y se corrigió en `PLAN.md`.
+   - Resultado: typecheck ok, Vitest 16/16, build ok, Playwright 6/6 tres veces seguidas.
+
+### Prompt 10 — Qué falta de la funcionalidad
+
+> que mas queda de esta feature?
+
+**Acciones:**
+
+1. Se respondió a partir de `docs/PLAN.md`. Pendientes: entrega 3 (dependencias), entrega 4 (vínculo consumo↔tarea), entrega 5 (documentación y validación), commit de la entrega 2, verificación de la CSP con el stack de producción (Caddy) y la prueba manual del arrastre de avance. Se señalaron limitaciones conocidas (sin soporte táctil de frappe para arrastrar; en celulares el Gantt sirve solo para ver). No se modificó código.
+
+### Prompt 11 — Cierre de la funcionalidad
+
+> entrega 4 no lo vamos a hacer. es demasiado complejo para el scope de la tool. La dependencia tampoco. documentemos y cerremos la feature.
+
+**Acciones:**
+
+1. Decisión del usuario: se descartan la entrega 3 (dependencias) y la 4 (consumo↔tarea). La funcionalidad se cierra con las tareas (entrega 2) y la documentación (entrega 5).
+2. **Documentación:**
+   - `docs/API.md`: rutas de tareas, cuerpo de escritura y la sección "Tareas (Gantt)" con reglas, errores y bloqueos.
+   - `docs/ESPECIFICACION.md`: entidad Tarea, reglas, acceso, interfaz; en Fase 5 queda solo lo pendiente, con nota de lo descartado.
+   - `README.md`: fila "Planificar tareas" en la matriz de permisos, reglas, `tasks` en el mapa de carpetas, cantidad de pruebas y la sección "Planificación (Gantt)" con la limitación táctil y lo fuera de alcance.
+   - `docs/PLAN.md`: entregas 3 y 4 tachadas como descartadas por el usuario, entrega 5 ✔ y "funcionalidad cerrada"; en la lista de fases, Gantt ✔.
+   - `docs/VALIDACION.md`: sección nueva "Planificación Gantt (2026-09-30)".
+   - `HISTORIAL_DESARROLLO.md` y `docs/HISTORIAL_DESARROLLO.md`: sección 20 (con el enlace a `prompts.md` ajustado en cada copia).
+   - `FEATURE_PLAN.md` (raíz del repo): "Planificacion Gantt: Done (…)", porque el usuario pidió cerrar la funcionalidad.
+   - `CLAUDE.md` local (ignorado por Git): estado de la Fase 5 y router `tasks.py`.
+3. **Verificación manual que estaba pendiente:** build de producción con la CSP de `deploy/Caddyfile` inyectada. Sin violaciones ni errores; el arrastre del borde de avance hizo 1 `PUT` (70 %) y actualizó la tabla.
+4. **Verificación final:** ruff ok, pytest 101, typecheck ok, Vitest 16/16, build ok, `gen:api` estable, Playwright 6/6.
+5. Se commitea la funcionalidad en la rama `feat-gantt-chart` (sin push).

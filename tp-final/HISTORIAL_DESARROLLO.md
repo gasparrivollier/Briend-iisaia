@@ -282,3 +282,12 @@ La etapa siguiente se registra prompt por prompt, con cada acción, en [prompts.
 - Se eligieron FastAPI, Vue 3 + TypeScript, PostgreSQL, sesión por cookie con CSRF, y Docker Compose con Caddy.
 - Se ejecutó en fases, con un commit por fase en la rama `replatform-fastapi-vue`: fundamentos, paridad del backend, paridad del frontend, despliegue y documentación.
 - Las funcionalidades nuevas del roadmap (Fase 5) quedaron para más adelante.
+
+## 20. Planificación Gantt (2026-09-30)
+
+Registrada prompt por prompt en [prompts.md](prompts.md) (Prompts 5 a 11), en la rama `feat-gantt-chart`. En resumen:
+
+- Se planificó en entregas: vista general, tareas, dependencias, vínculo consumo↔tarea y documentación.
+- La vista general de todos los proyectos se implementó y el usuario la descartó: el Gantt se accede desde cada proyecto y muestra sus tareas.
+- Se implementaron las tareas (tabla `tarea`, API, formulario y diagrama con frappe-gantt que se puede arrastrar), con sus reglas de fechas y de borrado.
+- Las dependencias y el vínculo con consumos se descartaron por exceder el alcance de la herramienta.

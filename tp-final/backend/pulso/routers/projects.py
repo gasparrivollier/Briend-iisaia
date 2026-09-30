@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import func, select
 
 from ..errors import APIError, forbidden
-from ..models import STATUSES, Consumo, Proyecto, Recurso, Rol
+from ..models import STATUSES, Consumo, Proyecto, Recurso, Rol, Tarea
 from ..queries import (
     consumption_row,
     consumptions_query,
@@ -70,6 +70,22 @@ def editable_project(identifier: int, db: DB, user: User) -> Proyecto:
 
 
 def apply(project: Proyecto, data: ProyectoIn, db: DB, user: User) -> Proyecto:
+    if project.proyecto_id is not None:
+        # Same row lock as saving a task, so a task cannot slip outside the new range concurrently.
+        db.get(Proyecto, project.proyecto_id, with_for_update=True, populate_existing=True)
+        outside = db.scalar(
+            select(func.count())
+            .select_from(Tarea)
+            .where(
+                Tarea.proyecto_id == project.proyecto_id,
+                (Tarea.fecha_inicio < data.fecha_inicio) | (Tarea.fecha_fin > data.fecha_fin),
+            )
+        )
+        if outside:
+            raise APIError(
+                f'Hay {outside} tarea(s) fuera de las nuevas fechas del proyecto. '
+                'Ajustalas antes de cambiar el rango.'
+            )
     if user.es_admin:
         project.owner_id = reference(db, Recurso, data.owner_id)
     for key, value in data.model_dump(exclude={'owner_id'}).items():

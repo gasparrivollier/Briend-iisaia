@@ -25,6 +25,10 @@ El esquema OpenAPI completo, fuente del cliente tipado del frontend, se sirve en
 | POST | `/api/proyectos` | Crear, devuelve proyecto (201) |
 | PUT | `/api/proyectos/<id>` | Reemplazar campos editables, devuelve proyecto (200) |
 | DELETE | `/api/proyectos/<id>` | Eliminar (204) |
+| GET | `/api/proyectos/<id>/tareas` | Tareas del proyecto, ordenadas por fecha de inicio (todos los usuarios) |
+| POST | `/api/proyectos/<id>/tareas` | Crear tarea (201); responsable del proyecto o administrador |
+| GET | `/api/tareas/<id>` | Tarea individual |
+| PUT / DELETE | `/api/tareas/<id>` | Actualizar (200) o eliminar (204); responsable del proyecto o administrador |
 | GET | `/api/consumos` | Array de consumos con nombres de proyecto/recurso/rol |
 | GET | `/api/consumos/<id>` | Consumo individual |
 | POST / PUT / DELETE | `/api/consumos`, `/api/consumos/<id>` | Crear (201), actualizar (200), eliminar (204) |
@@ -41,6 +45,7 @@ POST usa la colección; PUT y DELETE usan un ID. PUT recibe todos los campos edi
 - Consumo: `proyecto_id`, `recurso_id`, `fecha_inicio`, `fecha_fin`, `horas_consumidas`, `tarea`, `rol_id`. Para un usuario común, recurso_id siempre se obtiene de la sesión, ignorando el valor enviado.
 - Recurso: `recurso_nombre`, `es_admin` (booleano, por defecto false), `password`. Al editar, omitir password o enviar cadena vacía conserva la contraseña; proporcionar una nueva exige cambio en el próximo acceso.
 - Rol: `rol_descripcion`.
+- Tarea: `tarea_nombre`, `fecha_inicio`, `fecha_fin`, `porcentaje_avance` y `recurso_id` opcional (responsable de la tarea; `null` o cadena vacía = sin asignar). El proyecto sale de la ruta al crear y no cambia al editar.
 
 Fechas ISO `YYYY-MM-DD`. Horas positivas finitas. Avance 0–100. Los números e IDs pueden enviarse como números JSON o cadenas numéricas; no se aceptan booleanos, objetos o listas como valores numéricos. Textos obligatorios no pueden estar vacíos.
 
@@ -62,6 +67,16 @@ Formato uniforme: `{ "error": { "code": "validation_error", "message": "Mensaje 
 Orden de verificación en cada endpoint protegido: 401 sin sesión → 403 `password_change_required` → 400 `csrf_invalid` → 415 sin JSON → 400 si el cuerpo no es un objeto → 403 por permisos del recurso → 400 por validación de campos. Así, un usuario sin permisos recibe 403 aunque los datos enviados sean inválidos.
 
 Los errores no generan reintentos automáticos de escritura. El frontend conserva el formulario para corregirlo, informa desconexiones y redirige al login o al cambio de contraseña según corresponda.
+
+## Tareas (Gantt)
+
+Cada proyecto tiene tareas planificadas que el frontend muestra como diagrama de Gantt en el detalle del proyecto. Las lecturas devuelven `tarea_id`, `proyecto_id`, `tarea_nombre`, `fecha_inicio`, `fecha_fin`, `porcentaje_avance`, `recurso_id` y `recurso_nombre` (null si no tiene responsable).
+
+- Las fechas de la tarea deben estar dentro de las del proyecto; si no, 400 con el rango del proyecto en el mensaje.
+- Un `PUT /api/proyectos/<id>` que deja tareas fuera del nuevo rango devuelve 400 ("Hay N tarea(s) fuera de las nuevas fechas del proyecto…").
+- Eliminar un proyecto con tareas devuelve 409 `conflict`: primero hay que eliminar sus tareas.
+- Los permisos (responsable del proyecto o administrador) se verifican antes de validar el cuerpo, igual que en el resto de la API. Guardar una tarea y cambiar las fechas del proyecto bloquean la fila del proyecto, para que un pedido concurrente no deje tareas afuera.
+- El avance de las tareas no modifica el `porcentaje_avance` del proyecto, que sigue siendo manual.
 
 ## Email de recursos
 

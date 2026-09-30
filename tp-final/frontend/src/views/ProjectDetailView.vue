@@ -7,6 +7,7 @@ import DeleteButton from '@/components/DeleteButton.vue'
 import LoadState from '@/components/LoadState.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import StatGrid from '@/components/StatGrid.vue'
+import TaskPlan from '@/components/TaskPlan.vue'
 import { useSessionStore } from '@/stores/session'
 import { fmt } from '@/utils'
 
@@ -49,6 +50,7 @@ const summaries = computed(() => [
         </div>
       </PageHeading>
       <StatGrid :items="stats" />
+      <TaskPlan :project-id="id" :editable="editable" />
       <section class="panel">
         <div class="section-heading">
           <h2>Consumos de horas</h2>
