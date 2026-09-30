@@ -359,3 +359,34 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 3. **Verificación manual que estaba pendiente:** build de producción con la CSP de `deploy/Caddyfile` inyectada. Sin violaciones ni errores; el arrastre del borde de avance hizo 1 `PUT` (70 %) y actualizó la tabla.
 4. **Verificación final:** ruff ok, pytest 101, typecheck ok, Vitest 16/16, build ok, `gen:api` estable, Playwright 6/6.
 5. Se commitea la funcionalidad en la rama `feat-gantt-chart` (sin push).
+
+## Prompt: "como es el proceso para levantar la app para una persona que recien se clona el repo? windows y linux."
+
+**Acciones realizadas:**
+- Se leyó `tp-final/README.md` (sección "Desarrollo local", `compose.yaml`, `.env.example`) para confirmar los pasos y requisitos vigentes.
+- Se verificó con `grep` que `SECRET_KEY` ya no es usado por el backend (solo aparece en un test de email histórico) — las sesiones son server-side en tabla `sesion` sin clave de firma, por lo que ese paso mencionado en una versión anterior de `CLAUDE.md` está desactualizado y no se incluyó en la respuesta.
+- Se verificó `requires-python = ">=3.12"` en `backend/pyproject.toml`.
+- No se modificó ningún archivo de código; se respondió únicamente en el chat explicando el proceso para Windows y Linux (prerequisitos: Git, uv, Node 22+, Docker/Podman; pasos: clonar, levantar `db`/`mailpit` con compose, `init-db`, `uvicorn --reload`, `npm install && npm run dev`).
+
+## Prompt: "/plan Hay que buscar una forma de que sea mas facil de levantar local sin modificar como funciona. demasiado. podemos hacerlo?"
+
+**Acciones realizadas (modo plan):**
+- Se lanzó un agente Explore para relevar hechos: `backend/pulso/cli.py` (CLI con `argparse`, sin lógica de subprocess), `.github/workflows/tp-final.yml` (referenciado en el README pero **no existe** en el repo/historial — desajuste preexistente, no se tocó), `frontend/package.json` (sin `concurrently`/`npm-run-all`), el servicio `api` de `compose.yaml` (documentado como alternativa secundaria, no como flujo principal) y `backend/pulso/config.py` (default de `database_url` ya coincide con el compose de desarrollo; `SECRET_KEY` no es un campo de `Settings`, mención obsoleta en una versión vieja de `CLAUDE.md`).
+- Se lanzó un agente Plan para diseñar la solución: un único script Python cross-platform (`uv run scripts/dev.py`, sin dependencias, cabecera PEP 723) que encadena los mismos comandos ya documentados (compose up db/mailpit, `init-db`, `uvicorn --reload`, `npm install && npm run dev`) sin cambiar la arquitectura. Se descartó Makefile (requiere `make` en Windows) y scripts `.sh`/`.ps1` duplicados (doble mantenimiento).
+- Se escribió el plan final en `/home/gaspi/.claude/plans/linear-twirling-ember.md` y se pidió aprobación con `ExitPlanMode`. El usuario aprobó y avisó que había creado una rama nueva (`feat-improve-first-build-process`).
+
+**Implementación:**
+- Se creó `tp-final/scripts/dev.py`: detecta `docker compose` / `podman-compose` / `podman compose`, levanta `db`+`mailpit`, espera Postgres por polling TCP a `127.0.0.1:5432` (no depende de `--wait`, que no se comporta igual entre docker compose y podman-compose), corre `init-db`, saltea `npm install` si `frontend/node_modules` ya existe (`--reinstall` para forzar), y arranca `uvicorn` y `npm run dev` como subprocesos con logs prefijados `[api]`/`[web]`. Al cerrar (Ctrl+C o `SIGTERM`) termina ambos subprocesos de forma prolija (grupo de procesos propio en Linux/macOS vía `start_new_session`, `CREATE_NEW_PROCESS_GROUP`/`CTRL_BREAK_EVENT` en Windows) y deja `db`/`mailpit` corriendo salvo que se pase `--down`. Flags: `--reinstall`, `--down`, `--skip-compose`.
+- Se actualizó `tp-final/README.md` (sección "Desarrollo local"): se agregó una subsección "Forma rápida" con `uv run scripts/dev.py` antes del bloque manual existente, que se conservó íntegro bajo "Manual, paso a paso" como referencia y para troubleshooting.
+
+**Pruebas realizadas en esta máquina (Linux + podman-compose), corridas en background y verificadas con `curl`/`pgrep`/`ss`/`podman ps`:**
+- Corrida limpia: detecta `podman-compose`, levanta contenedores, espera Postgres, corre `init-db`, saltea `npm install` (ya existía `node_modules`), sirve `http://127.0.0.1:5000/api/docs` y `http://127.0.0.1:5173/` simultáneamente (200 en ambos).
+- Se encontraron y corrigieron dos problemas reales durante la prueba: (1) los `print()` del script quedaban fuera de orden respecto a la salida de los subprocesos por buffering — se corrigió con `sys.stdout.reconfigure(line_buffering=True)`; (2) el script solo limpiaba los subprocesos con `SIGINT`, no con `SIGTERM` (se evidenció al probar con `timeout`, que quedaron procesos huérfanos en 5000/5173) — se agregó un handler de `SIGTERM` que dispara el mismo camino de cierre limpio.
+- Tras el fix: `SIGTERM` cierra `api` y `web` sin huérfanos y deja `db`/`mailpit` corriendo; con `--down` además baja los contenedores.
+- Caso de error: con el puerto 5000 ocupado por otro proceso, el script detecta que la API murió, apaga `web` también, deja los contenedores arriba, y sale con mensaje claro (sin traceback, exit code 1) — mismo comportamiento verificado con el puerto 5173 ocupado (falla del frontend).
+- `check_prereqs()` probado por separado (monkeypatch de `shutil.which`): da mensaje amigable sin traceback cuando falta Node/npm.
+- Se limpiaron los procesos de prueba y se dejó el entorno (`db`/`mailpit`) en el mismo estado en que estaba antes de empezar.
+
+**No verificado en esta sesión (riesgo declarado):** ejecución real en Windows (PowerShell/cmd) — en particular el camino `CREATE_NEW_PROCESS_GROUP`/`CTRL_BREAK_EVENT` — y Docker Desktop específicamente (acá solo hay podman-compose disponible).
+
+**Archivos creados/modificados:** `tp-final/scripts/dev.py` (nuevo), `tp-final/README.md`, `tp-final/prompts.md`. No se hizo commit; queda a criterio del usuario.
