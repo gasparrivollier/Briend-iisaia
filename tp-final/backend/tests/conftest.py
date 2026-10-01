@@ -80,7 +80,7 @@ def seeded(app):
             text(
                 """INSERT INTO proyecto (proyecto_nombre,fecha_inicio,fecha_fin,horas_requeridas,owner_id,
                 proyect_status,porcentaje_avance)
-                VALUES ('Proyecto ejemplo','2026-09-01','2026-09-30',10,2,'en curso',25)"""
+                VALUES ('Proyecto ejemplo','2026-09-01','2026-09-30',10,2,'En curso',25)"""
             )
         )
         connection.execute(
@@ -124,7 +124,7 @@ def project_data():
         fecha_fin='2026-09-30',
         horas_requeridas='10',
         owner_id='2',
-        proyect_status='en curso',
+        proyect_status='En curso',
         porcentaje_avance='25',
     )
 

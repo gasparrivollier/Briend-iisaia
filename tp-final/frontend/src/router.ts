@@ -22,7 +22,6 @@ export const routes = [
   { path: '/proyectos/:id(\\d+)/editar', name: 'project-edit', component: () => import('@/views/ProjectFormView.vue'), props: withId, meta: { title: 'Editar proyecto' } },
   { path: '/proyectos/:id(\\d+)/tareas/nueva', name: 'task-new', component: () => import('@/views/TaskFormView.vue'), props: (route: RouteLocationNormalized) => ({ projectId: Number(route.params.id) }), meta: { title: 'Nueva tarea' } },
   { path: '/tareas/:id(\\d+)/editar', name: 'task-edit', component: () => import('@/views/TaskFormView.vue'), props: withId, meta: { title: 'Editar tarea' } },
-  { path: '/consumos', name: 'consumptions', component: () => import('@/views/ConsumptionsView.vue'), meta: { title: 'Consumos' } },
   { path: '/consumos/nuevo', name: 'consumption-new', component: () => import('@/views/ConsumptionFormView.vue'), meta: { title: 'Registrar consumo' } },
   { path: '/consumos/:id(\\d+)/editar', name: 'consumption-edit', component: () => import('@/views/ConsumptionFormView.vue'), props: withId, meta: { title: 'Editar consumo' } },
   { path: '/recursos', name: 'resources', component: () => import('@/views/ResourcesView.vue'), meta: { title: 'Recursos', admin: true } },

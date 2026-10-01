@@ -25,7 +25,7 @@ defineProps<{ rows: Consumption[]; user: User; showProject?: boolean; returnTo?:
           <td>
             <div v-if="user.es_admin || user.recurso_id === row.recurso_id" class="actions">
               <RouterLink class="btn btn-sm btn-outline-secondary" :to="`/consumos/${row.consumo_id}/editar`">Editar</RouterLink>
-              <DeleteButton :remove="() => api.deleteConsumption(row.consumo_id)" :return-to="returnTo ?? '/consumos'" />
+              <DeleteButton :remove="() => api.deleteConsumption(row.consumo_id)" :return-to="returnTo ?? '/proyectos'" />
             </div>
             <span v-else class="muted">Solo lectura</span>
           </td>

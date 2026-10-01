@@ -23,11 +23,10 @@ async function logout() {
 
 <template>
   <header class="topbar">
-    <RouterLink class="brand" to="/proyectos"><span class="brand-icon">P</span> Pulso <small>PROYECTOS</small></RouterLink>
+    <RouterLink class="brand" to="/proyectos"><span class="brand-icon">P</span> Pulso</RouterLink>
     <template v-if="session.user">
       <nav aria-label="Navegación principal">
         <RouterLink to="/proyectos">Proyectos</RouterLink>
-        <RouterLink to="/consumos">Consumos</RouterLink>
         <template v-if="session.user.es_admin">
           <RouterLink to="/recursos">Recursos</RouterLink>
           <RouterLink to="/roles">Roles</RouterLink>

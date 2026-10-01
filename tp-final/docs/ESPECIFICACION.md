@@ -10,7 +10,7 @@ Aplicación web de seguimiento de proyectos, en español, para un equipo chico. 
 - Rol: rol_id y rol_descripcion única. Es una función laboral, no un permiso.
 - Tarea: tarea_id, proyecto_id, tarea_nombre, fecha_inicio, fecha_fin, porcentaje_avance y recurso_id opcional (responsable de la tarea). Es la planificación del proyecto.
 
-El responsable referencia un recurso registrado. Las referencias se protegen con claves foráneas y eliminación restrictiva. Se conserva el nombre `proyect_status` solicitado. Estados: pendiente, en curso, pausado y finalizado.
+El responsable referencia un recurso registrado. Las referencias se protegen con claves foráneas y eliminación restrictiva. Se conserva el nombre `proyect_status` solicitado. Estados: Pendiente, En curso, Pausado y Finalizado.
 
 ## Reglas de negocio
 

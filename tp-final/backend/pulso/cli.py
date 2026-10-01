@@ -23,6 +23,11 @@ from .security import hash_password
 ALEMBIC_INI = Path(__file__).resolve().parent.parent / 'alembic.ini'
 INITIAL_ADMIN = ('admin', 'Proyecto1')
 
+# The Flask-era SQLite database stored these in lowercase; the current schema capitalizes them.
+LEGACY_STATUSES = {
+    'pendiente': 'Pendiente', 'en curso': 'En curso', 'pausado': 'Pausado', 'finalizado': 'Finalizado',
+}  # fmt: skip
+
 
 def database_url() -> str:
     return os.environ.get('DATABASE_URL') or Settings.model_fields['database_url'].default
@@ -58,7 +63,15 @@ def init_db(url: str) -> bool:
 TABLES = [  # parent tables first; (model, id column, converters)
     (Recurso, 'recurso_id', {'es_admin': bool, 'debe_cambiar_password': bool}),
     (Rol, 'rol_id', {}),
-    (Proyecto, 'proyecto_id', {'fecha_inicio': date.fromisoformat, 'fecha_fin': date.fromisoformat}),
+    (
+        Proyecto,
+        'proyecto_id',
+        {
+            'fecha_inicio': date.fromisoformat,
+            'fecha_fin': date.fromisoformat,
+            'proyect_status': lambda v: LEGACY_STATUSES.get(v, v),
+        },
+    ),
     (Consumo, 'consumo_id', {'fecha_inicio': date.fromisoformat, 'fecha_fin': date.fromisoformat}),
 ]
 

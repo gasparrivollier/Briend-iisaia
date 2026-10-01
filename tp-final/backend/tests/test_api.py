@@ -252,7 +252,7 @@ def test_filters_read_views_and_api_only(client):
     ]:  # fmt: skip
         response = client.get(path)
         assert response.status_code == 200 and response.headers['content-type'] == 'application/json', path
-    assert len(client.get('/api/proyectos?estado=en+curso&responsable=2').json()) == 1
+    assert len(client.get('/api/proyectos?estado=En+curso&responsable=2').json()) == 1
     assert client.get('/api/proyectos?estado=finalizado').json() == []
     assert client.get('/api/proyectos?responsable=3').json() == []
     assert client.get('/api/proyectos?responsable=abc').status_code == 400

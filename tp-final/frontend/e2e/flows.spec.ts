@@ -11,6 +11,18 @@ async function login(page: Page, name: string, password: string) {
   await page.waitForURL((url) => url.pathname !== '/login')
 }
 
+// DateField (@vuepic/vue-datepicker) renders a text input in dd/MM/yyyy; typing and
+// tabbing out commits the value the same way a calendar pick would. Tab (not Enter) on
+// purpose: Enter also triggers the browser's native implicit form submission once the
+// rest of the form is valid, which would submit before the next assertion runs.
+async function fillDate(page: Page, label: string, isoDate: string) {
+  const [y, m, d] = isoDate.split('-')
+  const field = page.getByLabel(label)
+  await field.click()
+  await field.fill(`${d}/${m}/${y}`)
+  await page.keyboard.press('Tab')
+}
+
 test('forced password change on first admin login', async ({ page }) => {
   await login(page, 'admin', 'Proyecto1')
   await expect(page).toHaveURL(/\/password$/)
@@ -44,12 +56,12 @@ test('admin creates a user, a role and a project', async ({ page }) => {
   await page.getByRole('link', { name: 'Proyectos', exact: true }).click()
   await page.getByRole('link', { name: '+ Nuevo proyecto' }).click()
   await page.getByLabel('Nombre del proyecto').fill('Portal <b>clientes</b>')
-  await page.getByLabel('Fecha de inicio').fill('2026-09-01')
-  await page.getByLabel('Fecha de fin prevista').fill('2026-09-30')
+  await fillDate(page, 'Fecha de inicio', '2026-09-01')
+  await fillDate(page, 'Fecha de fin prevista', '2026-09-30')
   await page.getByLabel('Horas requeridas').fill('20')
   await page.getByLabel('Avance real (%)').fill('40')
   await page.getByLabel('Responsable').selectOption({ label: 'ana' })
-  await page.getByLabel('Estado').selectOption('en curso')
+  await page.getByLabel('Estado').selectOption('En curso')
   await page.getByRole('button', { name: 'Guardar' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Portal <b>clientes</b>') // escaped
   await expect(page.getByText('ana · 2026-09-01 → 2026-09-30 · en curso')).toBeVisible()
@@ -69,14 +81,15 @@ test('plain user logs hours; invalid input keeps the form', async ({ page }) => 
   await expect(page.getByText('Recurso: ana')).toBeVisible()
   await page.getByLabel('Rol desempeñado').selectOption({ label: 'Analista' })
   await page.getByLabel('Tarea realizada').fill('Relevamiento')
-  await page.getByLabel('Fecha de inicio').fill('2026-10-02')
-  await page.getByLabel('Fecha de fin').fill('2026-10-01')
+  await fillDate(page, 'Fecha de inicio', '2026-10-02')
+  await fillDate(page, 'Fecha de fin', '2026-10-01') // before inicio: caught live, without submitting
   await page.getByLabel('Horas consumidas').fill('25.5')
-  await page.getByRole('button', { name: 'Guardar' }).click()
-  await expect(page.getByRole('alert')).toHaveText('La fecha de fin no puede ser anterior al inicio.')
+  await expect(page.getByText('La fecha de fin no puede ser anterior al inicio.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Guardar' })).toBeDisabled()
   await expect(page.getByLabel('Tarea realizada')).toHaveValue('Relevamiento') // input preserved
 
-  await page.getByLabel('Fecha de fin').fill('2026-10-03')
+  await fillDate(page, 'Fecha de fin', '2026-10-03')
+  await expect(page.getByRole('button', { name: 'Guardar' })).toBeEnabled()
   await page.getByRole('button', { name: 'Guardar' }).click()
   await expect(page.getByText('Cambios guardados.')).toBeVisible()
   // 25,5 h over 20 h: overrun of 5,5 h; manual progress unchanged.
@@ -111,15 +124,14 @@ test('project owner plans tasks on the Gantt', async ({ page }) => {
 
   await page.getByRole('link', { name: '+ Nueva tarea' }).click()
   await page.getByLabel('Nombre de la tarea').fill('Diseño <i>UX</i> & R&D')
-  await page.getByLabel('Fecha de inicio').fill('2026-09-01')
-  await page.getByLabel('Fecha de fin').fill('2026-10-05') // outside the project
+  await fillDate(page, 'Fecha de inicio', '2026-09-01')
+  // DateField's min/max (bound to the project's own dates, and the end picker's min bound to
+  // whatever start was picked) now stop an out-of-range or reversed pair from being entered at
+  // all, live, instead of only rejecting it after Guardar — so there's nothing invalid to submit
+  // here any more. The backend's own OUTSIDE_PROJECT rule is still exercised below via a Gantt
+  // drag, which calls the API directly and bypasses the picker's client-side constraints.
+  await fillDate(page, 'Fecha de fin', '2026-09-10')
   await page.getByLabel('Responsable de la tarea').selectOption({ label: 'ana' })
-  await page.getByRole('button', { name: 'Guardar' }).evaluate((b: HTMLButtonElement) => b.form!.noValidate = true)
-  await page.getByRole('button', { name: 'Guardar' }).click()
-  await expect(page.getByRole('alert')).toHaveText(
-    'Las fechas de la tarea deben estar dentro de las del proyecto (2026-09-01 → 2026-09-30).',
-  )
-  await page.getByLabel('Fecha de fin').fill('2026-09-10')
   await page.getByRole('button', { name: 'Guardar' }).click()
   await expect(page).toHaveURL(/\/proyectos\/1$/)
 

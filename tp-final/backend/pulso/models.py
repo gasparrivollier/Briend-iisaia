@@ -17,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-STATUSES = ('pendiente', 'en curso', 'pausado', 'finalizado')
+STATUSES = ('Pendiente', 'En curso', 'Pausado', 'Finalizado')
 
 
 class Base(DeclarativeBase):
@@ -56,7 +56,7 @@ class Proyecto(Base):
         CheckConstraint('fecha_fin >= fecha_inicio', name='proyecto_fechas'),
         CheckConstraint('horas_requeridas > 0', name='proyecto_horas_positivas'),
         CheckConstraint(
-            "proyect_status IN ('pendiente','en curso','pausado','finalizado')", name='proyecto_estado'
+            "proyect_status IN ('Pendiente','En curso','Pausado','Finalizado')", name='proyecto_estado'
         ),
         CheckConstraint('porcentaje_avance BETWEEN 0 AND 100', name='proyecto_avance'),
     )
