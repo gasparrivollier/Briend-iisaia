@@ -1,0 +1,252 @@
+openapi: 3.0.3
+info:
+  title: Pulso — Proyectos y dedicaciones
+  version: 1.0.0
+  description: |
+    Contrato propuesto para el ejercicio, independiente de la API implementada.
+    Cada proyecto contiene registros de dedicación. Los identificadores son
+    enteros positivos asignados por el servidor. Las fechas usan YYYY-MM-DD.
+    Alcance didáctico: no se define autenticación ni paginación.
+paths:
+  /proyectos:
+    get:
+      operationId: listarProyectos
+      summary: Listar proyectos
+      responses:
+        '200':
+          description: Todos los proyectos; lista vacía si no hay ninguno.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Proyecto'
+    post:
+      operationId: crearProyecto
+      summary: Crear un proyecto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProyectoEntrada'
+      responses:
+        '201':
+          description: Proyecto creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proyecto'
+        '400':
+          $ref: '#/components/responses/DatosInvalidos'
+  /proyectos/{proyecto_id}/dedicaciones:
+    parameters:
+      - $ref: '#/components/parameters/ProyectoId'
+    get:
+      operationId: listarDedicaciones
+      summary: Listar las dedicaciones de un proyecto
+      responses:
+        '200':
+          description: Registros del proyecto; lista vacía si no tiene dedicaciones.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dedicacion'
+        '400':
+          $ref: '#/components/responses/DatosInvalidos'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+    post:
+      operationId: crearDedicacion
+      summary: Registrar horas dedicadas a un proyecto
+      description: El proyecto debe existir. proyecto_id se toma exclusivamente del path.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DedicacionEntrada'
+      responses:
+        '201':
+          description: Dedicación creada y asociada al proyecto indicado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dedicacion'
+        '400':
+          $ref: '#/components/responses/DatosInvalidos'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+  /proyectos/{proyecto_id}/dedicaciones/{dedicacion_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProyectoId'
+      - name: dedicacion_id
+        in: path
+        required: true
+        description: Identificador de una dedicación perteneciente al proyecto.
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+    delete:
+      operationId: eliminarDedicacion
+      summary: Eliminar una dedicación de un proyecto
+      description: |
+        No requiere cuerpo. Devuelve 404 si el proyecto o la dedicación no existen,
+        o si la dedicación pertenece a otro proyecto. Repetir una eliminación
+        exitosa devuelve 404.
+      responses:
+        '204':
+          description: Dedicación eliminada; respuesta sin cuerpo.
+        '400':
+          $ref: '#/components/responses/DatosInvalidos'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+components:
+  parameters:
+    ProyectoId:
+      name: proyecto_id
+      in: path
+      required: true
+      description: Identificador del proyecto contenedor.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  schemas:
+    ProyectoEntrada:
+      type: object
+      additionalProperties: false
+      required: [nombre, fecha_inicio]
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: '\S'
+          example: Rediseño del portal
+        fecha_inicio:
+          type: string
+          format: date
+          example: '2026-09-30'
+    Proyecto:
+      type: object
+      additionalProperties: false
+      required: [id, nombre, fecha_inicio]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: '\S'
+          example: Rediseño del portal
+        fecha_inicio:
+          type: string
+          format: date
+          example: '2026-09-30'
+    DedicacionEntrada:
+      type: object
+      additionalProperties: false
+      required: [persona, fecha, horas, tarea]
+      properties:
+        persona:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '\S'
+          example: Ana Pérez
+        fecha:
+          type: string
+          format: date
+          example: '2026-09-30'
+        horas:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 24
+          example: 2.5
+        tarea:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: '\S'
+          example: Diseño de la pantalla de inicio
+    Dedicacion:
+      type: object
+      required: [id, proyecto_id, persona, fecha, horas, tarea]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 10
+        proyecto_id:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        persona:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '\S'
+          example: Ana Pérez
+        fecha:
+          type: string
+          format: date
+          example: '2026-09-30'
+        horas:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 24
+          example: 2.5
+        tarea:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: '\S'
+          example: Diseño de la pantalla de inicio
+    Error:
+      type: object
+      additionalProperties: false
+      required: [codigo, mensaje]
+      properties:
+        codigo:
+          type: string
+          enum: [datos_invalidos, no_encontrado]
+        mensaje:
+          type: string
+          minLength: 1
+  responses:
+    DatosInvalidos:
+      description: |
+        JSON malformado, campos faltantes o adicionales, tipos incorrectos,
+        fechas inválidas, textos vacíos o solo espacios, horas fuera de (0, 24],
+        o identificadores de ruta que no sean enteros positivos.
+        La validación precede a la búsqueda de recursos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: datos_invalidos
+            mensaje: La solicitud contiene un valor inválido.
+    NoEncontrado:
+      description: Proyecto inexistente, dedicación inexistente o ajena al proyecto.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: no_encontrado
+            mensaje: No se encontró el recurso dentro del proyecto indicado.
