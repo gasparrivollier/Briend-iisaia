@@ -65,8 +65,8 @@ function retry() {
         v-model="form.responsable" name="responsable" label="Responsable" blank="Todos los responsables" :required="false"
         :options="(catalogs.data.value?.recursos ?? []).map((r) => ({ value: r.recurso_id, label: r.recurso_nombre }))"
       />
-      <button class="btn btn-dark">Filtrar</button>
-      <RouterLink to="/proyectos">Limpiar</RouterLink>
+      <button class="btn btn-primary">Filtrar</button>
+      <RouterLink class="btn btn-outline-secondary" to="/proyectos">Limpiar</RouterLink>
     </form>
     <div class="project-grid">
       <article v-for="p in projects.data.value" :key="p.proyecto_id" class="panel project-card">

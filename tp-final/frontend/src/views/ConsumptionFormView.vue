@@ -3,13 +3,14 @@ import { useQuery } from '@tanstack/vue-query'
 import { computed, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, APIError } from '@/api/client'
+import DateField from '@/components/DateField.vue'
 import FormShell from '@/components/FormShell.vue'
 import LoadState from '@/components/LoadState.vue'
 import SelectField from '@/components/SelectField.vue'
 import TextField from '@/components/TextField.vue'
 import { useSubmit } from '@/composables/submit'
 import { useSessionStore } from '@/stores/session'
-import { toNumber, toText } from '@/utils'
+import { dateRangeError, toNumber, toText } from '@/utils'
 
 const props = defineProps<{ id?: number }>()
 const session = useSessionStore()
@@ -49,6 +50,8 @@ const denied = computed(() => {
 const unavailable = computed(
   () => !projects.data.value?.length || !catalogs.data.value?.roles.length,
 )
+const dateReady = computed(() => !!form.fecha_inicio && !!form.fecha_fin)
+const dateError = computed(() => (dateReady.value ? dateRangeError(form.fecha_inicio, form.fecha_fin) : null))
 
 const { busy, submit } = useSubmit(async () => {
   const saved = await api.saveConsumption(
@@ -63,6 +66,11 @@ const { busy, submit } = useSubmit(async () => {
   )
   return `/proyectos/${saved.proyecto_id}`
 })
+
+const back = computed(() => {
+  const proyectoId = existing.data.value?.proyecto_id ?? toNumber(form.proyecto_id)
+  return proyectoId ? `/proyectos/${proyectoId}` : '/proyectos'
+})
 </script>
 
 <template>
@@ -72,8 +80,8 @@ const { busy, submit } = useSubmit(async () => {
     @retry="existing.refetch()"
   >
     <FormShell
-      :title="id ? 'Editar consumo' : 'Registrar consumo'" back="/consumos"
-      :disabled="unavailable" :busy="busy" @submit="submit"
+      :title="id ? 'Editar consumo' : 'Registrar consumo'" :back="back"
+      :disabled="unavailable || !dateReady || !!dateError" :busy="busy" @submit="submit"
     >
       <div v-if="unavailable" class="alert alert-warning">
         Se necesita al menos un proyecto y un rol para registrar horas. Contactá al administrador.
@@ -93,9 +101,10 @@ const { busy, submit } = useSubmit(async () => {
       />
       <TextField v-model="form.tarea" name="tarea" label="Tarea realizada" required />
       <div class="form-grid">
-        <TextField v-model="form.fecha_inicio" name="fecha_inicio" label="Fecha de inicio" type="date" required />
-        <TextField v-model="form.fecha_fin" name="fecha_fin" label="Fecha de fin" type="date" required />
+        <DateField v-model="form.fecha_inicio" name="fecha_inicio" label="Fecha de inicio" required />
+        <DateField v-model="form.fecha_fin" name="fecha_fin" label="Fecha de fin" required />
       </div>
+      <p v-if="dateError" class="field-error">{{ dateError }}</p>
       <TextField v-model="form.horas_consumidas" name="horas_consumidas" label="Horas consumidas" type="number" required min="0" step="any" />
     </FormShell>
   </LoadState>
