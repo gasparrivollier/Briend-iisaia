@@ -70,6 +70,7 @@ export async function call<T>(pending: Promise<Result<T>>): Promise<T> {
 const id = (value: number) => ({ params: { path: { identifier: value } } })
 
 export const api = {
+  runAlerts: () => call(http.POST('/api/alertas/ejecutar', { body: {} as never })),
   session: () => call(http.GET('/api/session')),
   login: (body: Schemas['LoginIn']) => call(http.POST('/api/login', { body })),
   logout: () => call(http.POST('/api/logout', { body: {} as never })),

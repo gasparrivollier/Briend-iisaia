@@ -114,6 +114,12 @@ class Tarea(Base):
     )
 
 
+class RevisionDiaria(Base):
+    __tablename__ = 'revision_diaria'
+
+    fecha: Mapped[date] = mapped_column(Date, primary_key=True)
+
+
 class Sesion(Base):
     """Server-side browser session. Anonymous sessions (recurso_id NULL) carry the CSRF token before login."""
 

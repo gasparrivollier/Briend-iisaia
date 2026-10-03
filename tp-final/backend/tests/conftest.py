@@ -56,7 +56,7 @@ def app(migrated):
     app = create_app(Settings(database_url=migrated))
     yield app
     with app.state.engine.begin() as connection:
-        tables = ', '.join(['consumo', 'tarea', 'proyecto', 'rol', 'sesion', 'recurso'])
+        tables = ', '.join(['revision_diaria', 'consumo', 'tarea', 'proyecto', 'rol', 'sesion', 'recurso'])
         connection.execute(text(f'TRUNCATE {tables} RESTART IDENTITY CASCADE'))
     app.state.engine.dispose()
 

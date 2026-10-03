@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .config import Settings, get_settings
 from .db import make_engine, make_sessionmaker
 from .errors import APIError, error_response
-from .routers import auth, consumptions, projects, resources, roles, tasks
+from .routers import alerts, auth, consumptions, projects, resources, roles, tasks
 from .schemas import BAD_NUMBER, BAD_REFERENCE, REQUIRED
 
 logger = logging.getLogger('pulso')
@@ -49,7 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = make_engine(settings.database_url)
     app.state.sessionmaker = make_sessionmaker(app.state.engine)
 
-    for module in (auth, projects, tasks, consumptions, resources, roles):
+    for module in (auth, projects, tasks, consumptions, resources, roles, alerts):
         app.include_router(module.router)
 
     @app.middleware('http')

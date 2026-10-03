@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/api/client'
 import LoadState from '@/components/LoadState.vue'
@@ -12,6 +12,27 @@ import { useSessionStore } from '@/stores/session'
 import { fmt, statusClass } from '@/utils'
 
 const session = useSessionStore()
+const alertsBusy = ref(false)
+const alertsMessage = ref('')
+const alertsFailed = ref(false)
+async function runAlerts() {
+  if (alertsBusy.value) return
+  alertsBusy.value = true
+  alertsMessage.value = ''
+  alertsFailed.value = false
+  try {
+    const result = await api.runAlerts()
+    alertsFailed.value = result.fallidos > 0
+    alertsMessage.value = result.en_ejecucion
+      ? 'Ya hay un control de alertas en ejecución. Intentá nuevamente cuando termine.'
+      : `Control completado: ${result.vencidos} proyectos vencidos, ${result.enviados} correos enviados, ${result.sin_email} sin email y ${result.fallidos} envíos fallidos.`
+  } catch (error) {
+    alertsFailed.value = true
+    alertsMessage.value = error instanceof Error ? error.message : 'No se pudo ejecutar el control.'
+  } finally {
+    alertsBusy.value = false
+  }
+}
 const route = useRoute()
 const router = useRouter()
 const filters = computed(() => ({
@@ -50,6 +71,13 @@ function retry() {
   <PageHeading title="Proyectos" subtitle="El avance de tu equipo, en perspectiva." eyebrow="VISTA GENERAL">
     <RouterLink v-if="session.user?.es_admin" class="btn btn-primary" to="/proyectos/nuevo">+ Nuevo proyecto</RouterLink>
   </PageHeading>
+  <div v-if="session.user?.es_admin" class="panel mb-3">
+    <button type="button" class="btn btn-outline-primary" :disabled="alertsBusy" @click="runAlerts">
+      {{ alertsBusy ? 'Ejecutando control…' : 'Ejecutar control de alertas' }}
+    </button>
+    <p class="muted mt-2 mb-0">Revisa fechas vencidas de todos los proyectos y envía avisos al owner. Puede reenviar avisos de hoy.</p>
+    <p v-if="alertsMessage" role="status" class="mt-2 mb-0" :class="alertsFailed ? 'text-danger' : ''">{{ alertsMessage }}</p>
+  </div>
   <LoadState
     :loading="projects.isPending.value || catalogs.isPending.value"
     :error="projects.error.value ?? catalogs.error.value"

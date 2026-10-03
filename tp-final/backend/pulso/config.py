@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     session_days: int = 7
     max_body_bytes: int = 1024 * 1024
+    smtp_host: str = '127.0.0.1'
+    smtp_port: int = 1025
+    smtp_from: str = 'Pulso <notificaciones@pulso.local>'
+    smtp_username: str = ''
+    smtp_password: str = ''
+    smtp_starttls: bool = False
+    smtp_ssl: bool = False
+    smtp_timeout: float = 10
 
 
 @lru_cache

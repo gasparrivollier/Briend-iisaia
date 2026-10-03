@@ -177,6 +177,17 @@ class ConsumoIn(DateRange):
     tarea: Text
     rol_id: Id
 
+    @model_validator(mode='after')
+    def daily_hours_limit(self):
+        days = (self.fecha_fin - self.fecha_inicio).days + 1
+        maximum = 12 * days
+        if self.horas_consumidas > maximum:
+            raise fail(
+                f'Las horas consumidas no pueden superar {maximum} horas '
+                f'(12 horas por día durante {days} días, ambas fechas incluidas).'
+            )
+        return self
+
 
 class TareaIn(DateRange):
     tarea_nombre: Text

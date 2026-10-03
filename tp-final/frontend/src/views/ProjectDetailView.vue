@@ -8,6 +8,7 @@ import LoadState from '@/components/LoadState.vue'
 import PageHeading from '@/components/PageHeading.vue'
 import StatGrid from '@/components/StatGrid.vue'
 import TaskPlan from '@/components/TaskPlan.vue'
+import ProjectHoursChart from '@/components/ProjectHoursChart.vue'
 import { useSessionStore } from '@/stores/session'
 import { fmt } from '@/utils'
 
@@ -51,6 +52,7 @@ const summaries = computed(() => [
       </PageHeading>
       <StatGrid :items="stats" />
       <TaskPlan :project-id="id" :editable="editable" />
+      <ProjectHoursChart :project="project" :consumptions="detail.data.value?.consumos ?? []" />
       <section class="panel">
         <div class="section-heading">
           <h2>Consumos de horas</h2>

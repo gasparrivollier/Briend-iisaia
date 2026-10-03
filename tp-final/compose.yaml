@@ -28,14 +28,30 @@ services:
     command: sh -c "python -m pulso.cli init-db && uvicorn pulso.asgi:app --host 0.0.0.0 --port 5000 --reload"
     environment:
       DATABASE_URL: postgresql+psycopg://pulso:pulso@db:5432/pulso
+      SMTP_HOST: mailpit
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
       - ./backend/pulso:/app/pulso:Z
       - ./backend/migrations:/app/migrations:Z
     depends_on:
+      mailpit:
+        condition: service_started
       db:
         condition: service_healthy
+
+  alerts:
+    build: ./backend
+    command: python -m pulso.alerts
+    environment:
+      DATABASE_URL: postgresql+psycopg://pulso:pulso@db:5432/pulso
+      SMTP_HOST: mailpit
+    volumes:
+      - ./backend/pulso:/app/pulso:Z
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   pgdata:

@@ -1,5 +1,58 @@
 # Pulso — Seguimiento de proyectos y dedicación
 
+## Avisos de consumos por correo
+
+### Alertas automáticas de proyectos
+
+El servicio Docker `alerts` revisa todos los proyectos una vez al día a las 09:00 de Buenos Aires
+(UTC-3), incluidos los finalizados. Si se inicia después de esa hora, realiza la revisión pendiente
+del día. No recupera días anteriores en los que estuvo apagado. El equipo y Docker deben estar
+encendidos; `restart: unless-stopped` mantiene el proceso activo cuando Docker está funcionando.
+La tabla `revision_diaria` y un bloqueo PostgreSQL evitan revisiones simultáneas y repeticiones
+tras un reinicio. La migración `0005` crea esa tabla sin modificar los proyectos.
+
+- Si `fecha_fin < fecha actual`, envía al owner un correo con asunto
+  `URGENTE Fecha de finalizacion excedida <nombre del proyecto>`, fecha actual y fecha prevista.
+  La fecha de hoy todavía no está vencida. Se repite cada día mientras la condición persista.
+- Al crear o editar un consumo, si el total pasa de `<= horas_requeridas` a `> horas_requeridas`,
+  envía al owner `URGENTE horas aplicadas excedidas <nombre del proyecto>`, con horas requeridas
+  y aplicadas. No repite la alerta por cada carga mientras ya esté excedido; si vuelve a estar
+  dentro del presupuesto y lo supera nuevamente, vuelve a avisar. Incluye cambios de proyecto
+  de un consumo. El control serializa las escrituras concurrentes por proyecto.
+
+Los avisos no cambian el estado ni el porcentaje de avance. Si el owner no tiene email, se omite
+el envío y queda un aviso en los logs. Los fallos SMTP no deshacen consumos; la revisión diaria
+registra el intento y vuelve a evaluar al día siguiente, sin reintentos de correo ese mismo día.
+La entrega SMTP y la base no son una transacción única: un cierre abrupto entre enviar y confirmar
+puede duplicar un aviso diario al reiniciar. No se garantiza entrega exactamente una vez.
+
+Arranque: `docker compose up -d --build api alerts`. Para actualizar una instalación existente,
+ejecutar primero `docker compose exec api python -m pulso.cli init-db`.
+Con API local, aplicar `uv run python -m pulso.cli init-db` y ejecutar en otra terminal, desde
+`backend/`, `uv run python -m pulso.alerts`. No depende de que haya un navegador abierto.
+
+### Notificación de cada consumo
+
+Al crear un consumo se notifica al owner del proyecto y al recurso del consumo, usando sus
+emails guardados en Recursos. El mensaje incluye proyecto, recurso, rol, fechas, horas y tarea.
+Las direcciones repetidas reciben un solo mensaje; las vacías se omiten. Editar o eliminar
+un consumo no envía avisos. Los usuarios comunes siempre notifican con el recurso de su sesión.
+
+En desarrollo los mensajes se capturan en **Mailpit**, disponible en http://127.0.0.1:8025;
+no se entregan a casillas reales. `docker compose up -d api mailpit` configura la API con
+`SMTP_HOST=mailpit`. Para la API ejecutada con `uv`, el valor predeterminado es `127.0.0.1:1025`.
+
+Para entrega real, configurar `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USERNAME`,
+`SMTP_PASSWORD`, `SMTP_STARTTLS` y `SMTP_SSL` en el entorno del backend (o `backend/.env`).
+En producción Compose toma esos valores del `.env` de la raíz; ver `.env.example`.
+Usar STARTTLS para puerto 587 o SSL para 465 según el proveedor; los certificados se verifican.
+El remitente debe estar autorizado por el proveedor. Nunca guardar credenciales en Git.
+
+El envío se ejecuta en segundo plano después de guardar el consumo, con timeout de 10 segundos
+(`SMTP_TIMEOUT` en el backend). Si falla, el consumo se conserva y se registra el error en
+los logs `pulso.mail`. No hay cola persistente ni reintentos automáticos: una interrupción del
+proceso puede perder el aviso; guardar el consumo no garantiza la entrega del correo.
+
 Aplicación web en español para registrar la dedicación del equipo y seguir el avance de los proyectos. Está pensada para un equipo chico y busca ser **simple de usar, pero útil** para gestionar proyectos.
 
 Tiene dos componentes independientes:
@@ -182,3 +235,39 @@ El detalle de cada proyecto incluye la sección **Planificación**: las tareas d
 - Limitación: frappe-gantt solo maneja eventos de mouse, así que en pantallas táctiles el diagrama se puede ver pero no arrastrar; las tareas se editan desde el formulario.
 - Quedaron fuera de alcance, por decisión del usuario, las dependencias entre tareas y el vínculo de consumos con tareas.
 
+
+### Límite de horas por consumo
+
+Cada consumo admite hasta `12 × ((fecha_fin - fecha_inicio).days + 1)` horas.
+Se cuentan todos los días calendario, ambas fechas incluidas. Se valida al crear y editar,
+en el formulario y en la API, incluyendo si se acorta el período. El límite se aplica a
+cada registro, no a la suma de distintos consumos. Los datos históricos no se modifican.
+
+### Control manual de alertas
+
+En la pantalla Proyectos los administradores tienen el botón **Ejecutar control de alertas**.
+Ejecuta la misma revisión de fechas del servicio `alerts` mediante `POST /api/alertas/ejecutar`,
+protegido por sesión, permisos de administrador y CSRF. Se ejecuta en la API usando la lógica
+compartida; no necesita acceso al motor Docker ni iniciar otro contenedor.
+Puede reenviar avisos aunque el control diario ya se haya realizado. No modifica el registro
+diario ni su horario. El bloqueo PostgreSQL impide ejecuciones simultáneas con el worker.
+Muestra proyectos vencidos, envíos correctos, fallidos y owners sin email; mientras trabaja,
+el botón queda deshabilitado. Las alertas de horas siguen ejecutándose al guardar consumos.
+
+### Gráfico de horas acumuladas
+
+El detalle del proyecto muestra debajo de Planificación dos líneas: azul para horas
+planificadas y naranja discontinua para aplicadas. Cada punto representa el cierre del día.
+El plan reparte las horas requeridas entre todos los días calendario del proyecto, ambas
+fechas incluidas. Cada consumo se reparte uniformemente entre sus propias fechas (el modelo
+no guarda un desglose diario). Se suman consumos superpuestos. El gráfico empieza el primer
+día del proyecto e incluye allí cualquier saldo anterior; se extiende si hay consumos posteriores.
+El plan permanece constante después de su fecha final. El eje Y va de cero a las horas requeridas;
+los excesos se informan en texto y el selector permite consultar valores fuera de la escala.
+
+La línea aplicada termina en la última fecha de fin de los consumos. A partir de allí,
+una línea verde proyecta hasta el fin previsto usando la pendiente de mínimos cuadrados
+sobre los acumulados diarios observados desde el inicio del proyecto (incluidos días sin
+cargas), anclada al último acumulado real para dar continuidad. No usa días futuros en el
+ajuste ni altera consumos. Con menos de dos días observados no se calcula una regresión.
+El selector distingue horas aplicadas de proyectadas y avisa si la proyección supera la escala.

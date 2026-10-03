@@ -53,6 +53,14 @@ const unavailable = computed(
 const dateReady = computed(() => !!form.fecha_inicio && !!form.fecha_fin)
 const dateError = computed(() => (dateReady.value ? dateRangeError(form.fecha_inicio, form.fecha_fin) : null))
 
+const maximumHours = computed(() => {
+  if (!dateReady.value || dateError.value) return undefined
+  // ISO dates use UTC midnight, avoiding daylight-saving offsets.
+  const days = (Date.parse(form.fecha_fin) - Date.parse(form.fecha_inicio)) / 86400000 + 1
+  return Number.isFinite(days) && days > 0 ? days * 12 : undefined
+})
+const hoursError = computed(() => maximumHours.value !== undefined && Number(form.horas_consumidas) > maximumHours.value)
+
 const { busy, submit } = useSubmit(async () => {
   const saved = await api.saveConsumption(
     {
@@ -81,7 +89,7 @@ const back = computed(() => {
   >
     <FormShell
       :title="id ? 'Editar consumo' : 'Registrar consumo'" :back="back"
-      :disabled="unavailable || !dateReady || !!dateError" :busy="busy" @submit="submit"
+      :disabled="unavailable || !dateReady || !!dateError || hoursError" :busy="busy" @submit="submit"
     >
       <div v-if="unavailable" class="alert alert-warning">
         Se necesita al menos un proyecto y un rol para registrar horas. Contactá al administrador.
@@ -105,7 +113,10 @@ const back = computed(() => {
         <DateField v-model="form.fecha_fin" name="fecha_fin" label="Fecha de fin" required />
       </div>
       <p v-if="dateError" class="field-error">{{ dateError }}</p>
-      <TextField v-model="form.horas_consumidas" name="horas_consumidas" label="Horas consumidas" type="number" required min="0" step="any" />
+      <TextField v-model="form.horas_consumidas" name="horas_consumidas" label="Horas consumidas" type="number" required min="0" :max="maximumHours" step="any" />
+      <p v-if="maximumHours !== undefined" :class="hoursError ? 'field-error' : 'text-muted'" aria-live="polite">
+        Máximo permitido: {{ maximumHours }} horas (12 horas por día, ambas fechas incluidas).
+      </p>
     </FormShell>
   </LoadState>
 </template>

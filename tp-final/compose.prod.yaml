@@ -23,12 +23,27 @@ services:
       sh -c "python -m pulso.cli init-db &&
              uvicorn pulso.asgi:app --host 0.0.0.0 --port 5000 --workers ${API_WORKERS:-2}
              --proxy-headers --forwarded-allow-ips='*'"
-    environment:
+    environment: &api_environment
       DATABASE_URL: postgresql+psycopg://pulso:${POSTGRES_PASSWORD:?Definí POSTGRES_PASSWORD en .env}@db:5432/pulso
       COOKIE_SECURE: "1"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_FROM: ${SMTP_FROM:-notificaciones@pulso.local}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  alerts:
+    build: ./backend
+    command: python -m pulso.alerts
+    environment: *api_environment
+    depends_on:
+      - api
     restart: unless-stopped
 
   db:

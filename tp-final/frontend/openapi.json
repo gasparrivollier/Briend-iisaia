@@ -1159,6 +1159,27 @@
         }
       }
     },
+    "/api/alertas/ejecutar": {
+      "post": {
+        "tags": [
+          "alertas"
+        ],
+        "summary": "Execute",
+        "operationId": "execute_api_alertas_ejecutar_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -1187,6 +1208,45 @@
   },
   "components": {
     "schemas": {
+      "AlertResult": {
+        "properties": {
+          "fecha": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha"
+          },
+          "vencidos": {
+            "type": "integer",
+            "title": "Vencidos",
+            "default": 0
+          },
+          "enviados": {
+            "type": "integer",
+            "title": "Enviados",
+            "default": 0
+          },
+          "fallidos": {
+            "type": "integer",
+            "title": "Fallidos",
+            "default": 0
+          },
+          "sin_email": {
+            "type": "integer",
+            "title": "Sin Email",
+            "default": 0
+          },
+          "en_ejecucion": {
+            "type": "boolean",
+            "title": "En Ejecucion",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "fecha"
+        ],
+        "title": "AlertResult"
+      },
       "Catalogos": {
         "properties": {
           "estados": {
