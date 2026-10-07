@@ -365,3 +365,20 @@ class ProyectoReporte(BaseModel):
     ejecucion: ReporteEjecucion
     tareas: ReporteTareas
     distribucion: ReporteDistribucion
+
+
+class CargaIssue(BaseModel):
+    fila: int
+    campo: str | None = None
+    mensaje: str
+
+
+class CargaResultado(BaseModel):
+    entidad: str
+    total: int
+    validas: int
+    errores_total: int
+    errores: list[CargaIssue]
+    advertencias: list[CargaIssue]
+    creadas: int
+    confirmada: bool

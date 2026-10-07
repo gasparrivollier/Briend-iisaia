@@ -151,3 +151,15 @@ def xlsx_bytes(rows):
     buffer = io.BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
+
+
+def upload(client, entidad, filename, content, confirmar=False):
+    token = client.get('/api/session').json()['csrf_token']
+    if isinstance(content, str):
+        content = content.encode()
+    return client.post(
+        f'/api/carga-masiva/{entidad}',
+        params={'confirmar': 'true' if confirmar else 'false'},
+        files={'archivo': (filename, content, 'application/octet-stream')},
+        headers={'X-CSRF-Token': token},
+    )

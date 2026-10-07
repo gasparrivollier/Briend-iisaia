@@ -2,6 +2,7 @@
 
 Guard order (same as the Flask version): 401 unauthorized -> 403 password_change_required
 -> 400 csrf_invalid -> 415 non-JSON body -> 400 body must be a JSON object.
+`json_body=False` skips the 415 and body checks (multipart uploads).
 """
 
 from dataclasses import dataclass
@@ -42,7 +43,7 @@ def load_session(request: Request, db: DB) -> RequestSession:
 State = Annotated[RequestSession, Depends(load_session)]
 
 
-def guard(require_user: bool = True, allow_pending: bool = False):
+def guard(require_user: bool = True, allow_pending: bool = False, json_body: bool = True):
     async def dependency(request: Request, state: State) -> None:
         if require_user:
             if state.user is None:
@@ -54,6 +55,8 @@ def guard(require_user: bool = True, allow_pending: bool = False):
         token = request.headers.get('X-CSRF-Token', '')
         if state.row is None or not same_token(token, state.row.csrf):
             raise APIError('La sesión del formulario venció. Recargá la página.', 400, 'csrf_invalid')
+        if not json_body:  # multipart uploads: auth and CSRF only
+            return
         content_type = request.headers.get('content-type', '').split(';')[0].strip().lower()
         if content_type != 'application/json':
             raise APIError('Enviá un cuerpo JSON con Content-Type: application/json.', 415, 'http_415')

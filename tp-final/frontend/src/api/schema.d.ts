@@ -308,6 +308,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/carga-masiva/{entidad}/plantilla.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Template */
+        get: operations["template_api_carga_masiva__entidad__plantilla_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/carga-masiva/{entidad}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload */
+        post: operations["upload_api_carga_masiva__entidad__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -361,6 +395,39 @@ export interface components {
              * @default false
              */
             en_ejecucion: boolean;
+        };
+        /** Body_upload_api_carga_masiva__entidad__post */
+        Body_upload_api_carga_masiva__entidad__post: {
+            /** Archivo */
+            archivo?: string | null;
+        };
+        /** CargaIssue */
+        CargaIssue: {
+            /** Fila */
+            fila: number;
+            /** Campo */
+            campo?: string | null;
+            /** Mensaje */
+            mensaje: string;
+        };
+        /** CargaResultado */
+        CargaResultado: {
+            /** Entidad */
+            entidad: string;
+            /** Total */
+            total: number;
+            /** Validas */
+            validas: number;
+            /** Errores Total */
+            errores_total: number;
+            /** Errores */
+            errores: components["schemas"]["CargaIssue"][];
+            /** Advertencias */
+            advertencias: components["schemas"]["CargaIssue"][];
+            /** Creadas */
+            creadas: number;
+            /** Confirmada */
+            confirmada: boolean;
         };
         /** Catalogos */
         Catalogos: {
@@ -1757,6 +1824,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlertResult"];
+                };
+            };
+        };
+    };
+    template_api_carga_masiva__entidad__plantilla_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entidad: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_api_carga_masiva__entidad__post: {
+        parameters: {
+            query?: {
+                confirmar?: boolean;
+            };
+            header?: never;
+            path: {
+                entidad: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_api_carga_masiva__entidad__post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CargaResultado"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

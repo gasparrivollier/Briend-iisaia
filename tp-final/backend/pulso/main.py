@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .config import Settings, get_settings
 from .db import make_engine, make_sessionmaker
 from .errors import APIError, error_response
-from .routers import alerts, auth, consumptions, projects, reports, resources, roles, tasks
+from .routers import alerts, auth, bulk, consumptions, projects, reports, resources, roles, tasks
 from .validation import validation_message
 
 logger = logging.getLogger('pulso')
@@ -28,14 +28,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = make_engine(settings.database_url)
     app.state.sessionmaker = make_sessionmaker(app.state.engine)
 
-    for module in (auth, projects, tasks, consumptions, reports, resources, roles, alerts):
+    for module in (auth, projects, tasks, consumptions, reports, resources, roles, alerts, bulk):
         app.include_router(module.router)
 
     @app.middleware('http')
     async def limits_and_headers(request: Request, call_next):
         length = request.headers.get('content-length', '')
-        if length.isdigit() and int(length) > settings.max_body_bytes:
-            response = error_response(413, 'http_413', 'La solicitud supera el tamaño máximo de 1 MiB.')
+        upload = request.url.path.startswith('/api/carga-masiva/')
+        # Multipart framing adds a little to the file itself; the router enforces the exact file size.
+        limit = settings.max_upload_bytes + 64 * 1024 if upload else settings.max_body_bytes
+        shown = settings.max_upload_bytes if upload else settings.max_body_bytes
+        if length.isdigit() and int(length) > limit:
+            response = error_response(
+                413, 'http_413', f'La solicitud supera el tamaño máximo de {shown // (1024 * 1024)} MiB.'
+            )
         else:
             response = await call_next(request)
         response.headers['X-Content-Type-Options'] = 'nosniff'

@@ -1232,6 +1232,107 @@
         }
       }
     },
+    "/api/carga-masiva/{entidad}/plantilla.csv": {
+      "get": {
+        "tags": [
+          "carga-masiva"
+        ],
+        "summary": "Template",
+        "operationId": "template_api_carga_masiva__entidad__plantilla_csv_get",
+        "parameters": [
+          {
+            "name": "entidad",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entidad"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/carga-masiva/{entidad}": {
+      "post": {
+        "tags": [
+          "carga-masiva"
+        ],
+        "summary": "Upload",
+        "operationId": "upload_api_carga_masiva__entidad__post",
+        "parameters": [
+          {
+            "name": "entidad",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entidad"
+            }
+          },
+          {
+            "name": "confirmar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Confirmar"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_api_carga_masiva__entidad__post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CargaResultado"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -1298,6 +1399,107 @@
           "fecha"
         ],
         "title": "AlertResult"
+      },
+      "Body_upload_api_carga_masiva__entidad__post": {
+        "properties": {
+          "archivo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archivo"
+          }
+        },
+        "type": "object",
+        "title": "Body_upload_api_carga_masiva__entidad__post"
+      },
+      "CargaIssue": {
+        "properties": {
+          "fila": {
+            "type": "integer",
+            "title": "Fila"
+          },
+          "campo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campo"
+          },
+          "mensaje": {
+            "type": "string",
+            "title": "Mensaje"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fila",
+          "mensaje"
+        ],
+        "title": "CargaIssue"
+      },
+      "CargaResultado": {
+        "properties": {
+          "entidad": {
+            "type": "string",
+            "title": "Entidad"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "validas": {
+            "type": "integer",
+            "title": "Validas"
+          },
+          "errores_total": {
+            "type": "integer",
+            "title": "Errores Total"
+          },
+          "errores": {
+            "items": {
+              "$ref": "#/components/schemas/CargaIssue"
+            },
+            "type": "array",
+            "title": "Errores"
+          },
+          "advertencias": {
+            "items": {
+              "$ref": "#/components/schemas/CargaIssue"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "creadas": {
+            "type": "integer",
+            "title": "Creadas"
+          },
+          "confirmada": {
+            "type": "boolean",
+            "title": "Confirmada"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entidad",
+          "total",
+          "validas",
+          "errores_total",
+          "errores",
+          "advertencias",
+          "creadas",
+          "confirmada"
+        ],
+        "title": "CargaResultado"
       },
       "Catalogos": {
         "properties": {
