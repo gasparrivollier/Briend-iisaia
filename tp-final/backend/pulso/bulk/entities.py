@@ -3,10 +3,11 @@ builder; builders only run on confirm (argon2 hashing, for instance, never happe
 
 from typing import Any
 
-from ..models import Proyecto, Recurso, Rol
-from ..schemas import ProyectoIn, RecursoIn, RolIn
+from ..models import Proyecto, Recurso, Rol, Tarea
+from ..routers.tasks import OUTSIDE_PROJECT
+from ..schemas import ProyectoIn, RecursoIn, RolIn, TareaIn
 from ..security import hash_password
-from .base import Build, Context, EntitySpec, RowProblem, gather, reference_from, validated
+from .base import Build, Context, EntitySpec, RowProblem, gather, problem, reference_from, validated
 from .cells import blank_to_none, to_date, to_flag, to_number, to_text
 
 
@@ -153,4 +154,79 @@ PROYECTOS = EntitySpec(
     prepare=prepare_proyectos,
 )
 
-SPECS: dict[str, EntitySpec] = {spec.key: spec for spec in (ROLES, RECURSOS, PROYECTOS)}
+
+def prepare_tareas(raw: dict[str, Any], ctx: Context) -> Build:
+    project, assignee, data = gather(
+        lambda: ctx.project_from(raw),
+        lambda: reference_from(
+            raw, 'recurso_id', 'recurso', ctx.resource_names, ctx.resource_ids, 'el recurso', required=False
+        ),
+        lambda: validated(
+            TareaIn,
+            {
+                'tarea_nombre': to_text(raw.get('tarea_nombre')),
+                'fecha_inicio': to_date(raw.get('fecha_inicio')),
+                'fecha_fin': to_date(raw.get('fecha_fin')),
+                'porcentaje_avance': to_number(raw.get('porcentaje_avance')) or 0,
+            },
+        ),
+    )
+    if not ctx.user.es_admin and project.owner_id != ctx.user.recurso_id:
+        raise problem(
+            'proyecto', 'Solo el responsable o un administrador puede cargar tareas en este proyecto.'
+        )
+    if data.fecha_inicio < project.fecha_inicio or data.fecha_fin > project.fecha_fin:
+        raise problem('fecha_inicio', OUTSIDE_PROJECT.format(project.fecha_inicio, project.fecha_fin))
+    return lambda: Tarea(
+        proyecto_id=project.proyecto_id,
+        tarea_nombre=data.tarea_nombre,
+        fecha_inicio=data.fecha_inicio,
+        fecha_fin=data.fecha_fin,
+        porcentaje_avance=data.porcentaje_avance,
+        recurso_id=assignee,
+    )
+
+
+TAREAS = EntitySpec(
+    key='tareas',
+    label='Tareas',
+    example={
+        'proyecto': 'Portal clientes',
+        'tarea_nombre': 'Diseño',
+        'fecha_inicio': '2026-10-01',
+        'fecha_fin': '2026-10-15',
+        'porcentaje_avance': '0',
+        'recurso': 'maria',
+    },
+    columns=frozenset(
+        {
+            'proyecto',
+            'proyecto_id',
+            'tarea_nombre',
+            'fecha_inicio',
+            'fecha_fin',
+            'porcentaje_avance',
+            'recurso',
+            'recurso_id',
+        }
+    ),
+    required=(
+        ('proyecto', 'proyecto_id'),
+        ('tarea_nombre',),
+        ('fecha_inicio',),
+        ('fecha_fin',),
+    ),
+    aliases={
+        'tarea': 'tarea_nombre',
+        'nombre': 'tarea_nombre',
+        'inicio': 'fecha_inicio',
+        'fin': 'fecha_fin',
+        'avance': 'porcentaje_avance',
+        'responsable': 'recurso',
+    },
+    prepare=prepare_tareas,
+    admin_only=False,
+    locks_projects=True,
+)
+
+SPECS: dict[str, EntitySpec] = {spec.key: spec for spec in (ROLES, RECURSOS, PROYECTOS, TAREAS)}

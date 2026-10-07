@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from sqlalchemy import text
+
 from .conftest import login, scalar, upload, xlsx_bytes
 
 
@@ -221,3 +223,71 @@ def test_proyectos_row_errors_are_all_reported(client, seeded):
 def test_proyectos_admin_only(client, seeded):
     login(client, 'ana', 'Personal123')
     assert upload(client, 'proyectos', 'p.csv', PROYECTOS).status_code == 403
+
+
+TAREAS = (
+    'proyecto,tarea_nombre,fecha_inicio,fecha_fin,porcentaje_avance,recurso\n'
+    'Proyecto ejemplo,Diseño,2026-09-02,2026-09-10,50,bruno\n'
+    'Proyecto ejemplo,Pruebas,2026-09-11,2026-09-20,,\n'
+)
+
+
+def test_tareas_owner_can_load_their_project_tasks(client, seeded):
+    login(client, 'ana', 'Personal123')
+    assert summary(upload(client, 'tareas', 't.csv', TAREAS, confirmar=True)) == (2, 2, 0, 2, True)
+    assert scalar(seeded, "SELECT recurso_id FROM tarea WHERE tarea_nombre='Diseño'") == 3
+    assert scalar(seeded, "SELECT recurso_id FROM tarea WHERE tarea_nombre='Pruebas'") is None
+
+
+def test_tareas_owner_preview_writes_nothing(client, seeded):
+    login(client, 'ana', 'Personal123')
+    assert summary(upload(client, 'tareas', 't.csv', TAREAS)) == (2, 2, 0, 0, False)
+    assert scalar(seeded, 'SELECT count(*) FROM tarea') == 0
+
+
+def test_tareas_non_owner_gets_row_errors_but_admin_may(client, seeded):
+    login(client, 'bruno', 'Personal123')
+    body = upload(client, 'tareas', 't.csv', TAREAS).json()
+    assert (body['validas'], body['errores_total']) == (0, 2)
+    assert 'responsable' in body['errores'][0]['mensaje']
+    login(client)
+    assert summary(upload(client, 'tareas', 't.csv', TAREAS, confirmar=True)) == (2, 2, 0, 2, True)
+
+
+def test_tareas_dates_outside_project_unknown_and_ambiguous_project(client, seeded):
+    with seeded.state.engine.begin() as connection:
+        connection.execute(
+            text(
+                """INSERT INTO proyecto (proyecto_nombre,fecha_inicio,fecha_fin,horas_requeridas,owner_id,
+                proyect_status,porcentaje_avance)
+                VALUES ('Proyecto ejemplo','2026-09-01','2026-09-30',10,2,'En curso',0)"""
+            )
+        )
+    login(client)
+    content = (
+        'proyecto,proyecto_id,tarea_nombre,fecha_inicio,fecha_fin,porcentaje_avance\n'
+        'Proyecto ejemplo,,Ambigua,2026-09-02,2026-09-03,0\n'  # two projects with that name
+        ',1,Fuera,2026-10-02,2026-10-03,0\n'  # outside 2026-09-01..30
+        'Inexistente,,Nada,2026-09-02,2026-09-03,0\n'
+        ',1,Bien,2026-09-02,2026-09-03,0\n'  # id fallback
+    )
+    body = upload(client, 'tareas', 't.csv', content).json()
+    messages = {e['fila']: e['mensaje'] for e in body['errores']}
+    assert 'Hay 2 proyectos' in messages[2]
+    assert 'dentro de las del proyecto' in messages[3]
+    assert 'No existe el proyecto' in messages[4]
+    assert 5 not in messages and body['validas'] == 1
+
+
+def test_tareas_bad_date_order_and_unknown_resource_reported_together(client, seeded):
+    login(client)
+    content = (
+        'proyecto,tarea_nombre,fecha_inicio,fecha_fin,recurso\n'
+        'Proyecto ejemplo,Mal,2026-09-10,2026-09-02,fantasma\n'
+    )
+    body = upload(client, 'tareas', 't.csv', content).json()
+    assert body['errores_total'] == 2  # one entry per problem, both on fila 2
+    assert {e['fila'] for e in body['errores']} == {2}
+    texts = ' | '.join(e['mensaje'] for e in body['errores'])
+    assert 'fantasma' in texts
+    assert 'fecha' in texts.lower()
