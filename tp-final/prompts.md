@@ -487,3 +487,30 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 - **Pruebas:** un test de `projectedEndDate` tenía mal calculada mi expectativa (10/10, no 11/10) y se corrigió. Vitest 48/48; `npm run build` ok. E2E: el flujo "plain user logs hours" ya fallaba antes de este cambio por el tope de 12 h/día del commit `a7a4025` (25,5 h en 2 días); se ajustó a 24 h (`-4 / 4`) y se agregó la visita al dashboard → 6/6. Se tomó una captura temporal (no queda en el repo) para revisar el aspecto.
 - **Documentación:** `docs/API.md`, `docs/ESPECIFICACION.md`, `docs/PLAN.md`, `docs/VALIDACION.md`, `README.md`, `FEATURE_PLAN.md`, `CLAUDE.md`.
 - No se hizo commit. No verificado: build de producción tras Caddy (CSP) ni vista móvil del dashboard.
+
+## Prompt: "are superpowers enabled?"
+
+**Acciones realizadas:** sólo respuesta (rama `feat-batch-uploads`, sesión en modo plan). Se confirmó que el hook de inicio cargó el skill `using-superpowers` y se listaron los skills `superpowers:*` disponibles. Se avisó que, por estar en modo plan, no se podía registrar el prompt en este archivo; se registra ahora, al salir del modo plan.
+
+## Prompt: "Alright. Let's plan a batch upload feature. Let's start mapping all dictionaries and tables and having a feature that allows .csv, .xlsx or .txt files for uploading massive data."
+
+**Acciones realizadas (modo plan, sólo lectura + archivo de plan):**
+- Se invocó el skill `superpowers:brainstorming` y se clasificó el pedido como **arquitectónico** (subsistema nuevo: parseo de archivos, validación y escritura masiva en varias tablas).
+- Se lanzó un agente Explore (sólo lectura) sobre `tp-final/` para mapear tablas, validadores, routers, CLI, docs, frontend y tests. Hallazgos principales: tablas `recurso`, `rol`, `proyecto`, `consumo`, `tarea` (más `revision_diaria` y `sesion` internas); el único diccionario fijo es `STATUSES`; sólo `recurso_nombre` y `rol_descripcion` son únicos (nombres de proyecto y tarea no); `guard()` exige JSON en toda mutación; límite de 1 MiB en la app y en Caddy; faltan `python-multipart` y `openpyxl`; cada consumo dispara emails (en lote serían N); no existía código de import/export salvo `cli.import-sqlite`.
+- Preguntas y respuestas:
+  - Alcance: primero se respondió "Consumos + Tareas"; el usuario interrumpió ("Sorry. Ask again"), se repitió la pregunta y la respuesta final fue **los 5 entidades** (Recursos, Roles, Proyectos, Tareas, Consumos).
+  - Errores: **vista previa y luego confirmar**.
+  - Referencias entre registros: **por nombre, con id como alternativa**.
+  - Estructura del archivo: **una entidad por carga**.
+  - Enfoque: **sin estado, se reenvía el archivo al confirmar** (sin tabla nueva). Valores por defecto aceptados: matriz de permisos actual, sin emails por fila, contraseña en el archivo para Recursos, confirmación todo-o-nada.
+- Se escribió el plan en `/home/gaspi/.claude/plans/are-superpowers-enabled-eventual-bengio.md` (mapa de columnas por entidad, parseo, servicio y endpoint `POST /api/carga-masiva/{entidad}?confirmar=`, guard multipart, límites de tamaño, frontend, pruebas) y el usuario lo **aprobó** con ExitPlanMode.
+- No se escribió código de producto todavía. Nota: el skill de brainstorming pide además un spec escrito en `docs/superpowers/specs/` y el paso `writing-plans`; el plan aprobado en modo plan cumple el rol de spec.
+- Al salir del modo plan se registraron en este archivo los dos prompts de la sesión y se invocó `superpowers:writing-plans`.
+- Se leyeron (sólo lectura) `sessions.py`, `routers/{consumptions,tasks,resources,projects}.py`, `schemas.py`, `main.py`, `queries.py`, `errors.py`, `mail.py`, `security.py`, `config.py`, `db.py`, `tests/conftest.py`, `tests/test_consumption_mail.py`, `pyproject.toml`, `frontend/src/{router.ts,api/client.ts}`, `components/{AppHeader,FormShell,PageHeading,SelectField}.vue`, `views/RoleFormView.vue`, `composables/{submit,notice}.ts`, `tests/unit/client.spec.ts` y `e2e/flows.spec.ts` para escribir código exacto en el plan.
+- Se creó `docs/superpowers/plans/2026-10-07-carga-masiva.md` (9 tareas: dependencias y mensajes compartidos, parseo de archivos, framework + endpoint + Roles, Recursos, Proyectos, Tareas, Consumos, frontend, e2e + documentación) y se copió el spec aprobado a `docs/superpowers/specs/2026-10-07-carga-masiva-design.md`. Desvío documentado respecto del spec: la confirmación con errores responde 200 con `confirmada: false` (el cliente descarta el cuerpo de las respuestas no 2xx). Pendiente: que el usuario revise el plan y elija el método de ejecución. No se ejecutó código ni se hizo commit.
+
+## Prompt: "Implement by subagent-driven. Also add commits while working on project and performing the tests"
+
+**Acciones realizadas:**
+- El usuario eligió ejecución **subagent-driven** del plan `docs/superpowers/plans/2026-10-07-carga-masiva.md` y **autorizó commits** durante el trabajo (un commit por tarea, tras correr sus tests), en la rama `feat-batch-uploads`.
+- Se invoca `superpowers:subagent-driven-development` (se actualiza esta entrada a medida que avanza).
