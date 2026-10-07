@@ -13,7 +13,7 @@ from ..errors import APIError
 from .cells import blank_to_none, normalize_header
 
 DELIMITERS = ',;\t|'
-MAX_LINES = 50_000  # lines scanned, so a sheet full of empty rows cannot keep us busy
+MAX_BLANK_RUN = 10_000  # consecutive blank lines after which scanning stops (styled-but-empty tails)
 
 
 @dataclass
@@ -33,7 +33,7 @@ def text_rows(content: bytes) -> Iterator[tuple[int, list[Any]]]:
         text = content.decode('cp1252', errors='replace')
     first = next((line for line in text.splitlines() if line.strip()), '')
     delimiter = max(DELIMITERS, key=first.count) if any(d in first for d in DELIMITERS) else ','
-    reader = csv.reader(io.StringIO(text, newline=''), delimiter=delimiter)
+    reader = csv.reader(io.StringIO(text, newline=''), delimiter=delimiter, strict=True)
     try:
         for cells in reader:
             yield reader.line_num, cells
@@ -50,7 +50,16 @@ def xlsx_rows(content: bytes) -> Iterator[tuple[int, list[Any]]]:
     except Exception:  # openpyxl raises many types for broken workbooks
         raise invalid('El archivo .xlsx no es válido.') from None
     try:
-        for number, row in enumerate(sheet.iter_rows(values_only=True), start=1):
+        rows = iter(sheet.iter_rows(values_only=True))
+        number = 0
+        while True:
+            try:
+                row = next(rows)
+            except StopIteration:
+                break
+            except Exception:  # truncated/corrupt sheet XML surfaces while iterating
+                raise invalid('El archivo .xlsx no es válido.') from None
+            number += 1
             yield number, list(row)
     finally:
         workbook.close()
@@ -69,11 +78,14 @@ def parse_file(filename: str, content: bytes, max_rows: int) -> ParsedFile:
 
     headers: list[str] | None = None
     rows: list[tuple[int, dict[str, Any]]] = []
+    blank_run = 0
     for line, cells in lines:
-        if line > MAX_LINES:
-            raise invalid(f'El archivo supera las {MAX_LINES} líneas.', 'archivo_demasiado_grande')
         if all(blank_to_none(cell) is None for cell in cells):
+            blank_run += 1
+            if blank_run > MAX_BLANK_RUN:
+                break
             continue
+        blank_run = 0
         if headers is None:
             headers = ['' if cell is None else normalize_header(cell) for cell in cells]
             duplicated = sorted({h for h in headers if h and headers.count(h) > 1})

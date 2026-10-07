@@ -1,3 +1,5 @@
+import io
+import zipfile
 from datetime import date, datetime
 
 import pytest
@@ -122,3 +124,35 @@ def test_header_only_xlsx_is_rejected():
     with pytest.raises(APIError) as caught:
         parse_file('a.xlsx', xlsx_bytes([['rol']]), 10)
     assert caught.value.code == 'archivo_invalido'
+
+
+def test_xlsx_with_truncated_sheet_xml_is_rejected():
+    original = zipfile.ZipFile(io.BytesIO(xlsx_bytes([['rol'], ['QA'], ['Dev']])))
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w') as broken:
+        for item in original.namelist():
+            data = original.read(item)
+            if item == 'xl/worksheets/sheet1.xml':
+                data = data[: len(data) // 2]
+            broken.writestr(item, data)
+    with pytest.raises(APIError) as caught:
+        parse_file('a.xlsx', buffer.getvalue(), 10)
+    assert caught.value.status == 400 and caught.value.code == 'archivo_invalido'
+
+
+def test_xlsx_row_cap_error_is_not_converted_to_invalid_file():
+    with pytest.raises(APIError) as caught:
+        parse_file('a.xlsx', xlsx_bytes([['rol'], ['A'], ['B'], ['C']]), 2)
+    assert caught.value.code == 'archivo_demasiado_grande'
+
+
+def test_xlsx_styled_empty_rows_far_below_the_data_are_ignored():
+    rows = [['rol'], ['QA']] + [[None]] * 59_997 + [[' ']]
+    parsed = parse_file('a.xlsx', xlsx_bytes(rows), 10)
+    assert parsed.rows == [(2, {'rol': 'QA'})]
+
+
+def test_csv_unterminated_quote_is_rejected():
+    with pytest.raises(APIError) as caught:
+        parse_file('a.csv', b'a,b\n"x,1\ny,2\n', 10)
+    assert caught.value.status == 400 and caught.value.code == 'archivo_invalido'
