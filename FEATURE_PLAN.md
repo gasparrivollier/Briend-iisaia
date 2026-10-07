@@ -6,8 +6,8 @@ Herramienta de project management
 - Carga de roles: Done.
 
 - Cargas masivas (batch): Pending.
-- Reporting: Pending
+- Reporting: Done (dashboard por proyecto)
 - Planificacion Gantt: Done (tareas por proyecto; sin dependencias ni vínculo con consumos).
-- Alertas (Notificaciones mail): Pending.
-- Proyecciones: Pending
-- Desvios: PEnding.
+- Alertas (Notificaciones mail): Done.
+- Proyecciones: Done (en el dashboard)
+- Desvios: Done (en el dashboard).

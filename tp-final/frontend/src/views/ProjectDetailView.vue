@@ -46,6 +46,7 @@ const summaries = computed(() => [
         eyebrow="DETALLE DEL PROYECTO"
       >
         <div class="actions">
+          <RouterLink class="btn btn-primary" :to="`/proyectos/${id}/dashboard`">Dashboard</RouterLink>
           <RouterLink v-if="editable" class="btn btn-outline-secondary" :to="`/proyectos/${id}/editar`">Editar proyecto</RouterLink>
           <DeleteButton v-if="session.user.es_admin" :remove="() => api.deleteProject(id)" return-to="/proyectos" />
         </div>

@@ -200,6 +200,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/proyectos/{identifier}/reporte": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report */
+        get: operations["report_api_proyectos__identifier__reporte_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recursos": {
         parameters: {
             query?: never;
@@ -516,6 +533,27 @@ export interface components {
             /** Porcentaje Avance */
             porcentaje_avance: number;
         };
+        /** ProyectoReporte */
+        ProyectoReporte: {
+            proyecto: components["schemas"]["ProyectoResumen"];
+            /**
+             * Fecha Corte
+             * Format: date
+             */
+            fecha_corte: string;
+            /**
+             * Periodo
+             * @enum {string}
+             */
+            periodo: "semana" | "mes";
+            salud: components["schemas"]["ReporteSalud"];
+            /** Periodos */
+            periodos: components["schemas"]["ReportePeriodo"][];
+            ritmo: components["schemas"]["ReporteRitmo"];
+            ejecucion: components["schemas"]["ReporteEjecucion"];
+            tareas: components["schemas"]["ReporteTareas"];
+            distribucion: components["schemas"]["ReporteDistribucion"];
+        };
         /** ProyectoResumen */
         ProyectoResumen: {
             /** Proyecto Id */
@@ -574,6 +612,113 @@ export interface components {
             recurso_id: number;
             /** Recurso Nombre */
             recurso_nombre: string;
+        };
+        /** ReporteDistribucion */
+        ReporteDistribucion: {
+            /** Por Recurso */
+            por_recurso: components["schemas"]["ReporteParte"][];
+            /** Por Rol */
+            por_rol: components["schemas"]["ReporteParte"][];
+            /** Actividades */
+            actividades: components["schemas"]["ReporteParte"][];
+        };
+        /** ReporteEjecucion */
+        ReporteEjecucion: {
+            /** Primer Consumo */
+            primer_consumo: string | null;
+            /** Ultimo Consumo */
+            ultimo_consumo: string | null;
+            /** Dias Desvio Inicio */
+            dias_desvio_inicio: number | null;
+            /** Horas Antes Inicio */
+            horas_antes_inicio: number;
+            /** Horas Despues Fin */
+            horas_despues_fin: number;
+            /** Dias Con Actividad */
+            dias_con_actividad: number;
+            /** Dias Transcurridos */
+            dias_transcurridos: number;
+        };
+        /** ReporteParte */
+        ReporteParte: {
+            /** Nombre */
+            nombre: string;
+            /** Horas */
+            horas: number;
+            /** Porcentaje */
+            porcentaje: number;
+        };
+        /** ReportePeriodo */
+        ReportePeriodo: {
+            /**
+             * Desde
+             * Format: date
+             */
+            desde: string;
+            /**
+             * Hasta
+             * Format: date
+             */
+            hasta: string;
+            /** Horas */
+            horas: number;
+            /** Por Rol */
+            por_rol: {
+                [key: string]: number;
+            };
+            /** Por Recurso */
+            por_recurso: {
+                [key: string]: number;
+            };
+        };
+        /** ReporteRitmo */
+        ReporteRitmo: {
+            /** Horas Semana Reciente */
+            horas_semana_reciente: number;
+            /** Horas Semana Promedio */
+            horas_semana_promedio: number;
+            /** Horas Semana Necesarias */
+            horas_semana_necesarias: number | null;
+            /** Dias Restantes */
+            dias_restantes: number;
+        };
+        /** ReporteSalud */
+        ReporteSalud: {
+            /** Porcentaje Tiempo */
+            porcentaje_tiempo: number;
+            /** Porcentaje Consumo */
+            porcentaje_consumo: number;
+            /** Porcentaje Avance */
+            porcentaje_avance: number;
+            /** Horas Ganadas */
+            horas_ganadas: number;
+            /** Indice Eficiencia */
+            indice_eficiencia: number | null;
+            /** Estado Eficiencia */
+            estado_eficiencia: ("bien" | "atencion" | "critico") | null;
+            /** Indice Cronograma */
+            indice_cronograma: number | null;
+            /** Estado Cronograma */
+            estado_cronograma: ("bien" | "atencion" | "critico") | null;
+        };
+        /** ReporteTareas */
+        ReporteTareas: {
+            /** Total */
+            total: number;
+            /** Completadas */
+            completadas: number;
+            /** En Curso */
+            en_curso: number;
+            /** Sin Recurso */
+            sin_recurso: number;
+            /** Vencidas */
+            vencidas: components["schemas"]["TareaOut"][];
+            /** Sin Iniciar Atrasadas */
+            sin_iniciar_atrasadas: components["schemas"]["TareaOut"][];
+            /** Avance Planificado */
+            avance_planificado: number;
+            /** Avance Real */
+            avance_real: number;
         };
         /** RolIn */
         RolIn: {
@@ -1255,6 +1400,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_api_proyectos__identifier__reporte_get: {
+        parameters: {
+            query?: {
+                periodo?: string;
+            };
+            header?: never;
+            path: {
+                identifier: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProyectoReporte"];
+                };
             };
             /** @description Validation Error */
             422: {

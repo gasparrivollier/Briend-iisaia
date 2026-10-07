@@ -80,6 +80,8 @@ export const api = {
   projects: (query: { estado?: string; responsable?: string }) =>
     call(http.GET('/api/proyectos', { params: { query } })),
   project: (identifier: number) => call(http.GET('/api/proyectos/{identifier}', id(identifier))),
+  projectReport: (identifier: number, periodo: 'semana' | 'mes') =>
+    call(http.GET('/api/proyectos/{identifier}/reporte', { params: { path: { identifier }, query: { periodo } } })),
   saveProject: (body: Schemas['ProyectoIn'], identifier?: number) =>
     identifier
       ? call(http.PUT('/api/proyectos/{identifier}', { ...id(identifier), body }))

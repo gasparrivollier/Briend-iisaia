@@ -38,9 +38,10 @@ Caddy sirve el frontend, obtiene el certificado HTTPS y reenvía `/api` a la API
 
 ## Próximas funcionalidades (Fase 5, pendiente)
 
-- Reporting: horas por período, plan vs. ejecución, desvíos y proyecciones de fin y de horas totales.
 - Cargas masivas por CSV, con vista previa de errores por fila.
 - Alertas por correo: presupuesto excedido, proyecto vencido y días sin carga de horas.
+
+El reporting ya está implementado como dashboard por proyecto (`/proyectos/<id>/dashboard`): salud y desvíos (tiempo vs. horas vs. avance, con índices de eficiencia y de cronograma), horas por semana o mes apiladas por rol o recurso, ritmo y proyección de la fecha de fin, ejecución real vs. plan, salud de las tareas y distribución de horas. Ver `docs/API.md`.
 
 La planificación Gantt ya está implementada (tareas por proyecto). Por decisión del usuario quedaron fuera de alcance las dependencias entre tareas y el vínculo de consumos con tareas.
 

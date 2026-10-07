@@ -123,3 +123,12 @@ La versión inicial Flask/Jinja tuvo 49 pruebas aprobadas; esa suite fue adaptad
 - Frontend: compilación correcta, 9 pruebas previas y 1 nueva prueba del formulario aprobadas.
 - Ruff check y format --check sin observaciones. OpenAPI y tipos del frontend regenerados.
 - La conexión local de pruebas requirió 127.0.0.1 en lugar de localhost. Los E2E completos no se volvieron a ejecutar; su flujo de alta fue actualizado para cargar email.
+
+## Dashboard de reporting (2026-10-07)
+
+- **Backend:** 132 pruebas aprobadas (`tests/test_reports.py`): prorrateo de horas, períodos por semana y mes con huecos, índices con denominador 0, ritmo y ejecución (incluido proyecto vencido), salud de tareas, distribución con tope de actividades, y el endpoint (401, 404, `periodo` inválido → 400, usuario común, proyecto vacío, "hoy" fijado con `dependency_overrides`). Ruff check y format sin observaciones. OpenAPI y tipos regenerados.
+- **Frontend:** compilación (`vue-tsc` + Vite) correcta; 48 pruebas de Vitest aprobadas (nuevas: `dashboard.spec.ts`, y `forecastStatus` / `projectedEndDate` en `projectHours.spec.ts`). Gráficos con `chart.js` 4 + `vue-chartjs` 5 (registro selectivo, `<canvas>`).
+- **E2E:** 6/6. El flujo del usuario común ahora abre el dashboard y comprueba los seis bloques y el selector semana/mes. Se corrigió un valor desactualizado del flujo existente: el formulario de consumos limita a 12 h por día (commit `a7a4025`), por lo que 25,5 h en dos días quedaba deshabilitado; ahora carga 24 h y espera "-4 / 4".
+- **Revisión visual:** captura del dashboard con datos reales del E2E (escritorio).
+- **No verificado:** el build de producción detrás de Caddy (CSP). Chart.js dibuja en `<canvas>` y no inyecta hojas de estilo, por lo que no debería requerir cambios en `deploy/Caddyfile`; conviene confirmarlo sin errores de CSP en consola al desplegar. La vista móvil del dashboard no se probó.
+- Los umbrales del semáforo (≥ 1, ≥ 0,85) son valores propuestos y están pendientes de confirmación del usuario.

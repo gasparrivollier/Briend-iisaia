@@ -83,7 +83,7 @@ test('plain user logs hours; invalid input keeps the form', async ({ page }) => 
   await page.getByLabel('Tarea realizada').fill('Relevamiento')
   await fillDate(page, 'Fecha de inicio', '2026-10-02')
   await fillDate(page, 'Fecha de fin', '2026-10-01') // before inicio: caught live, without submitting
-  await page.getByLabel('Horas consumidas').fill('25.5')
+  await page.getByLabel('Horas consumidas').fill('24')
   await expect(page.getByText('La fecha de fin no puede ser anterior al inicio.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Guardar' })).toBeDisabled()
   await expect(page.getByLabel('Tarea realizada')).toHaveValue('Relevamiento') // input preserved
@@ -92,9 +92,18 @@ test('plain user logs hours; invalid input keeps the form', async ({ page }) => 
   await expect(page.getByRole('button', { name: 'Guardar' })).toBeEnabled()
   await page.getByRole('button', { name: 'Guardar' }).click()
   await expect(page.getByText('Cambios guardados.')).toBeVisible()
-  // 25,5 h over 20 h: overrun of 5,5 h; manual progress unchanged.
-  await expect(page.getByText('-5,5 / 5,5')).toBeVisible()
+  // 24 h (the 12 h/day maximum) over 20 h: overrun of 4 h; manual progress unchanged.
+  await expect(page.getByText('-4 / 4')).toBeVisible()
   await expect(page.getByText('40 %').first()).toBeVisible()
+
+  // Reporting dashboard: every block renders for a project with hours.
+  await page.getByRole('link', { name: 'Dashboard', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard del proyecto' })).toBeVisible()
+  for (const name of ['Salud del proyecto', 'Horas por período', 'Ritmo y proyección', 'Ejecución real vs. plan', 'Salud de las tareas', 'Distribución de horas'])
+    await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.locator('canvas').first()).toBeVisible()
+  await page.getByLabel('Agrupar por período').selectOption('mes')
+  await expect(page.getByLabel('Agrupar por período')).toHaveValue('mes')
 
   await page.goto('/recursos') // admin route: redirected
   await expect(page).toHaveURL(/\/proyectos$/)

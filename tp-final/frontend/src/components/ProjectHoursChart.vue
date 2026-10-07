@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
-import { projectHours, projectForecast, type HoursConsumption, type HoursProject } from '@/projectHours'
+import { projectHours, projectForecast, forecastStatus as forecastStatusOf, type HoursConsumption, type HoursProject } from '@/projectHours'
 import { fmt } from '@/utils'
 
 const props = defineProps<{ project: HoursProject; consumptions: HoursConsumption[] }>()
@@ -10,15 +10,7 @@ const lastActualIndex = computed(() => points.value.reduce((last, point, index) 
 const lastActual = computed(() => points.value[lastActualIndex.value])
 const hasForecast = computed(() => forecast.value.values.some(value => value !== null))
 const finalForecast = computed(() => forecast.value.values[points.value.findIndex(point => point.date === props.project.fecha_fin)] ?? null)
-const forecastStatus = computed(() => {
-  const final = finalForecast.value
-  if (final === null) return null
-  const ratio = final / props.project.horas_requeridas
-  // Tolerance only compensates floating-point noise at the inclusive boundaries.
-  if (ratio > 1.15 + 1e-12) return { text: 'Sobre aplicacion', acceptable: false }
-  if (ratio < 0.85 - 1e-12) return { text: 'Falta de Recursos', acceptable: false }
-  return { text: 'Aceptable', acceptable: true }
-})
+const forecastStatus = computed(() => forecastStatusOf(finalForecast.value, props.project.horas_requeridas))
 const forecastColor = computed(() => forecastStatus.value?.acceptable === false ? '#b91c1c' : '#15803d')
 const projected = computed(() => forecast.value.values[selected.value] ?? null)
 const isActual = computed(() => !!current.value && current.value.date <= forecast.value.lastDate)

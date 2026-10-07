@@ -464,3 +464,26 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 - `frontend/src/styles/main.css`: se eliminaron las dos reglas `.brand small{...}` (una en el CSS base, otra en el media query de mobile que la ocultaba) que ya quedaban sin uso.
 - Verificación: `npx vue-tsc --noEmit` sin errores; `npm test` → 20/20.
 - No se tocó el backend. No se hizo commit; queda a criterio del usuario (último cambio de esta rama, según indicó).
+
+## Prompt: "help me catch up on latest changes in tp-final"
+
+**Acciones realizadas (sólo lectura, sin cambios de código):**
+- Se revisó `git log` de `tp-final/`, los `--stat` de los últimos commits (`a7a4025`, `ddafe1a`, `d9df839`, `eb3e758`), parte de `backend/pulso/alerts.py` y los títulos del README, y se resumieron los cambios al usuario.
+
+## Prompt: "Vamos a trabajar en el modulo de reporting. Hagamos brainstorming de una pantalla de dashboard a nivel de proyecto donde podamos ver estadisticas utiles en funcion de los datos que ya poseemos."
+
+**Acciones realizadas (modo plan, sólo lectura + archivo de plan):**
+- Se leyeron `FEATURE_PLAN.md`, `backend/pulso/models.py`, `queries.py`, `routers/projects.py`, `routers/alerts.py`, `alerts.py`, `frontend/src/views/ProjectDetailView.vue`, `components/ProjectHoursChart.vue`, `projectHours.ts`, `router.ts`, `api/client.ts`, la CSP de `deploy/Caddyfile` y las menciones de reporting en `docs/`.
+- Se presentó un menú de 7 bloques posibles (salud/desvíos, horas por período, burn rate, proyección de fecha de fin, ejecución real vs. plan, salud de tareas, distribución) y los límites de los datos (sin horas por tarea, sin dependencias, sin costos).
+- Preguntas y respuestas: ubicación → pantalla nueva `/proyectos/:id/dashboard`; bloques v1 → los cuatro grupos; gráficos → librería de gráficos.
+- Se escribió el plan en `/home/gaspi/.claude/plans/melodic-booping-token.md` (endpoint `GET /api/proyectos/{id}/reporte`, `reports.py`, componentes del dashboard con Chart.js, pruebas y documentación).
+
+## Prompt: "Implement"
+
+**Acciones realizadas:** se comienza la implementación del plan anterior (se actualiza esta entrada a medida que avanza).
+- Se retomó la entrada anterior: el usuario rechazó la primera salida del modo plan, cambió el modelo a Sonnet 5.5 y pidió "Implement". Antes de implementar se refinó el plan con cuatro ajustes (cálculo de `projectedEndDate`, etiquetas de origen de cada ritmo, validación manual de `periodo`, umbrales del semáforo como constantes a confirmar).
+- **Backend:** nuevos `backend/pulso/reports.py` (cálculos puros: prorrateo diario, salud/índices, períodos, ritmo, ejecución, tareas, distribución), `backend/pulso/routers/reports.py` (`GET /api/proyectos/{id}/reporte?periodo=semana|mes`; "hoy" es una dependencia `today` para poder fijarla en tests), modelos `ProyectoReporte` y relacionados en `schemas.py`, registro en `main.py`. Nuevo `tests/test_reports.py`. `uv run ruff check` / `format` ok; `uv run pytest -q` → 132 passed (levantando antes `podman compose up -d db mailpit`). Un primer fallo de test (la fila "Otras" se ordenaba por horas) se corrigió fijándola al final.
+- **Frontend:** `npm install chart.js@4 vue-chartjs@5`; `npm run gen:api`; `projectHours.ts` ahora exporta `forecastStatus` (extraído de `ProjectHoursChart.vue`) y `projectedEndDate`, y `projectForecast` devuelve también `slope`; nuevos `src/dashboard.ts`, `views/ProjectDashboardView.vue`, `components/dashboard/{BarChart,HealthPanel,PeriodHoursChart,PacePanel,ExecutionPanel,TaskHealthPanel,DistributionCharts}.vue`, ruta `project-dashboard`, botón "Dashboard" en el detalle, estilos en `main.css`, `api.projectReport`. Se cargó el skill `dataviz` (paleta categórica de 5 colores + "Otros" gris, tabla alternativa en cada gráfico, estados con ícono y texto).
+- **Pruebas:** un test de `projectedEndDate` tenía mal calculada mi expectativa (10/10, no 11/10) y se corrigió. Vitest 48/48; `npm run build` ok. E2E: el flujo "plain user logs hours" ya fallaba antes de este cambio por el tope de 12 h/día del commit `a7a4025` (25,5 h en 2 días); se ajustó a 24 h (`-4 / 4`) y se agregó la visita al dashboard → 6/6. Se tomó una captura temporal (no queda en el repo) para revisar el aspecto.
+- **Documentación:** `docs/API.md`, `docs/ESPECIFICACION.md`, `docs/PLAN.md`, `docs/VALIDACION.md`, `README.md`, `FEATURE_PLAN.md`, `CLAUDE.md`.
+- No se hizo commit. No verificado: build de producción tras Caddy (CSP) ni vista móvil del dashboard.
