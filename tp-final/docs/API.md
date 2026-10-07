@@ -78,6 +78,20 @@ Cada proyecto tiene tareas planificadas que el frontend muestra como diagrama de
 - Los permisos (responsable del proyecto o administrador) se verifican antes de validar el cuerpo, igual que en el resto de la API. Guardar una tarea y cambiar las fechas del proyecto bloquean la fila del proyecto, para que un pedido concurrente no deje tareas afuera.
 - El avance de las tareas no modifica el `porcentaje_avance` del proyecto, que sigue siendo manual.
 
+## Reporte del proyecto (dashboard)
+
+`GET /api/proyectos/<id>/reporte?periodo=semana|mes` (cualquier usuario autenticado; `periodo` inválido → 400, proyecto inexistente → 404). Devuelve en un solo pedido todo lo que muestra el dashboard `/proyectos/<id>/dashboard`:
+
+- `fecha_corte`: "hoy" para los cálculos (zona Buenos Aires); el frontend no usa su propio reloj.
+- `salud`: porcentajes de tiempo, consumo y avance; `horas_ganadas` (avance × horas requeridas); `indice_eficiencia` (ganadas / consumidas) e `indice_cronograma` (avance / tiempo), con su estado `bien` (≥ 1), `atencion` (≥ 0,85) o `critico`. Los índices son `null` si el denominador es 0.
+- `periodos`: horas por semana (desde el lunes) o mes, con desglose `por_rol` y `por_recurso`; incluye períodos sin horas entre el primero y el último.
+- `ritmo`: horas por semana de los últimos 28 días (÷ 4), promedio histórico y necesario para terminar a tiempo (`null` si venció o no queda saldo).
+- `ejecucion`: primer y último consumo, desvío de inicio en días, horas fuera del plazo planificado y días con actividad.
+- `tareas`: contadores, tareas vencidas y atrasadas sin iniciar, y avance planificado vs. real ponderado por duración.
+- `distribucion`: horas y porcentaje por recurso, por rol y por actividad (top 8 por el texto de `consumo.tarea` + "Otras").
+
+Las horas de cada consumo se reparten en partes iguales entre sus fechas (ambas incluidas), la misma regla del gráfico de horas acumuladas. No hay horas por tarea del Gantt (el vínculo consumo↔tarea se descartó). Los umbrales del semáforo son constantes de `backend/pulso/reports.py`.
+
 ## Email de recursos
 
 POST y PUT de recursos aceptan `email` opcional (texto o null). Vacío o espacios se normalizan a null; se recortan espacios externos. Un valor inválido devuelve 400 con un mensaje en español. PUT sin email lo deja en null, como reemplazo completo. Los recursos y la sesión incluyen email; los catálogos generales siguen mostrando solo ID y nombre. No hay restricción de unicidad ni verificación de entrega de correo.

@@ -781,6 +781,58 @@
         }
       }
     },
+    "/api/proyectos/{identifier}/reporte": {
+      "get": {
+        "tags": [
+          "reportes"
+        ],
+        "summary": "Report",
+        "operationId": "report_api_proyectos__identifier__reporte_get",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Identifier"
+            }
+          },
+          {
+            "name": "periodo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "semana",
+              "title": "Periodo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProyectoReporte"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/recursos": {
       "get": {
         "tags": [
@@ -1636,6 +1688,61 @@
         ],
         "title": "ProyectoOut"
       },
+      "ProyectoReporte": {
+        "properties": {
+          "proyecto": {
+            "$ref": "#/components/schemas/ProyectoResumen"
+          },
+          "fecha_corte": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Corte"
+          },
+          "periodo": {
+            "type": "string",
+            "enum": [
+              "semana",
+              "mes"
+            ],
+            "title": "Periodo"
+          },
+          "salud": {
+            "$ref": "#/components/schemas/ReporteSalud"
+          },
+          "periodos": {
+            "items": {
+              "$ref": "#/components/schemas/ReportePeriodo"
+            },
+            "type": "array",
+            "title": "Periodos"
+          },
+          "ritmo": {
+            "$ref": "#/components/schemas/ReporteRitmo"
+          },
+          "ejecucion": {
+            "$ref": "#/components/schemas/ReporteEjecucion"
+          },
+          "tareas": {
+            "$ref": "#/components/schemas/ReporteTareas"
+          },
+          "distribucion": {
+            "$ref": "#/components/schemas/ReporteDistribucion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proyecto",
+          "fecha_corte",
+          "periodo",
+          "salud",
+          "periodos",
+          "ritmo",
+          "ejecucion",
+          "tareas",
+          "distribucion"
+        ],
+        "title": "ProyectoReporte"
+      },
       "ProyectoResumen": {
         "properties": {
           "proyecto_id": {
@@ -1762,6 +1869,343 @@
           "recurso_nombre"
         ],
         "title": "RecursoRef"
+      },
+      "ReporteDistribucion": {
+        "properties": {
+          "por_recurso": {
+            "items": {
+              "$ref": "#/components/schemas/ReporteParte"
+            },
+            "type": "array",
+            "title": "Por Recurso"
+          },
+          "por_rol": {
+            "items": {
+              "$ref": "#/components/schemas/ReporteParte"
+            },
+            "type": "array",
+            "title": "Por Rol"
+          },
+          "actividades": {
+            "items": {
+              "$ref": "#/components/schemas/ReporteParte"
+            },
+            "type": "array",
+            "title": "Actividades"
+          }
+        },
+        "type": "object",
+        "required": [
+          "por_recurso",
+          "por_rol",
+          "actividades"
+        ],
+        "title": "ReporteDistribucion"
+      },
+      "ReporteEjecucion": {
+        "properties": {
+          "primer_consumo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primer Consumo"
+          },
+          "ultimo_consumo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Consumo"
+          },
+          "dias_desvio_inicio": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Desvio Inicio"
+          },
+          "horas_antes_inicio": {
+            "type": "number",
+            "title": "Horas Antes Inicio"
+          },
+          "horas_despues_fin": {
+            "type": "number",
+            "title": "Horas Despues Fin"
+          },
+          "dias_con_actividad": {
+            "type": "integer",
+            "title": "Dias Con Actividad"
+          },
+          "dias_transcurridos": {
+            "type": "integer",
+            "title": "Dias Transcurridos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "primer_consumo",
+          "ultimo_consumo",
+          "dias_desvio_inicio",
+          "horas_antes_inicio",
+          "horas_despues_fin",
+          "dias_con_actividad",
+          "dias_transcurridos"
+        ],
+        "title": "ReporteEjecucion"
+      },
+      "ReporteParte": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "horas": {
+            "type": "number",
+            "title": "Horas"
+          },
+          "porcentaje": {
+            "type": "number",
+            "title": "Porcentaje"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "horas",
+          "porcentaje"
+        ],
+        "title": "ReporteParte"
+      },
+      "ReportePeriodo": {
+        "properties": {
+          "desde": {
+            "type": "string",
+            "format": "date",
+            "title": "Desde"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date",
+            "title": "Hasta"
+          },
+          "horas": {
+            "type": "number",
+            "title": "Horas"
+          },
+          "por_rol": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Por Rol"
+          },
+          "por_recurso": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Por Recurso"
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde",
+          "hasta",
+          "horas",
+          "por_rol",
+          "por_recurso"
+        ],
+        "title": "ReportePeriodo"
+      },
+      "ReporteRitmo": {
+        "properties": {
+          "horas_semana_reciente": {
+            "type": "number",
+            "title": "Horas Semana Reciente"
+          },
+          "horas_semana_promedio": {
+            "type": "number",
+            "title": "Horas Semana Promedio"
+          },
+          "horas_semana_necesarias": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horas Semana Necesarias"
+          },
+          "dias_restantes": {
+            "type": "integer",
+            "title": "Dias Restantes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "horas_semana_reciente",
+          "horas_semana_promedio",
+          "horas_semana_necesarias",
+          "dias_restantes"
+        ],
+        "title": "ReporteRitmo"
+      },
+      "ReporteSalud": {
+        "properties": {
+          "porcentaje_tiempo": {
+            "type": "number",
+            "title": "Porcentaje Tiempo"
+          },
+          "porcentaje_consumo": {
+            "type": "number",
+            "title": "Porcentaje Consumo"
+          },
+          "porcentaje_avance": {
+            "type": "number",
+            "title": "Porcentaje Avance"
+          },
+          "horas_ganadas": {
+            "type": "number",
+            "title": "Horas Ganadas"
+          },
+          "indice_eficiencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indice Eficiencia"
+          },
+          "estado_eficiencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bien",
+                  "atencion",
+                  "critico"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Eficiencia"
+          },
+          "indice_cronograma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indice Cronograma"
+          },
+          "estado_cronograma": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bien",
+                  "atencion",
+                  "critico"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Cronograma"
+          }
+        },
+        "type": "object",
+        "required": [
+          "porcentaje_tiempo",
+          "porcentaje_consumo",
+          "porcentaje_avance",
+          "horas_ganadas",
+          "indice_eficiencia",
+          "estado_eficiencia",
+          "indice_cronograma",
+          "estado_cronograma"
+        ],
+        "title": "ReporteSalud"
+      },
+      "ReporteTareas": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "completadas": {
+            "type": "integer",
+            "title": "Completadas"
+          },
+          "en_curso": {
+            "type": "integer",
+            "title": "En Curso"
+          },
+          "sin_recurso": {
+            "type": "integer",
+            "title": "Sin Recurso"
+          },
+          "vencidas": {
+            "items": {
+              "$ref": "#/components/schemas/TareaOut"
+            },
+            "type": "array",
+            "title": "Vencidas"
+          },
+          "sin_iniciar_atrasadas": {
+            "items": {
+              "$ref": "#/components/schemas/TareaOut"
+            },
+            "type": "array",
+            "title": "Sin Iniciar Atrasadas"
+          },
+          "avance_planificado": {
+            "type": "number",
+            "title": "Avance Planificado"
+          },
+          "avance_real": {
+            "type": "number",
+            "title": "Avance Real"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "completadas",
+          "en_curso",
+          "sin_recurso",
+          "vencidas",
+          "sin_iniciar_atrasadas",
+          "avance_planificado",
+          "avance_real"
+        ],
+        "title": "ReporteTareas"
       },
       "RolIn": {
         "properties": {

@@ -9,7 +9,7 @@ error handler can forward the message verbatim.
 import math
 import re
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, ValidationInfo, model_validator
 from pydantic_core import PydanticCustomError
@@ -294,3 +294,74 @@ class ProyectoDetalle(BaseModel):
     consumos: list[ConsumoListado]
     por_recurso: dict[str, float]
     por_rol: dict[str, float]
+
+
+class ReporteSalud(BaseModel):
+    porcentaje_tiempo: float
+    porcentaje_consumo: float
+    porcentaje_avance: float
+    horas_ganadas: float
+    indice_eficiencia: float | None
+    estado_eficiencia: Literal['bien', 'atencion', 'critico'] | None
+    indice_cronograma: float | None
+    estado_cronograma: Literal['bien', 'atencion', 'critico'] | None
+
+
+class ReportePeriodo(BaseModel):
+    desde: date
+    hasta: date
+    horas: float
+    por_rol: dict[str, float]
+    por_recurso: dict[str, float]
+
+
+class ReporteRitmo(BaseModel):
+    horas_semana_reciente: float
+    horas_semana_promedio: float
+    horas_semana_necesarias: float | None
+    dias_restantes: int
+
+
+class ReporteEjecucion(BaseModel):
+    primer_consumo: date | None
+    ultimo_consumo: date | None
+    dias_desvio_inicio: int | None
+    horas_antes_inicio: float
+    horas_despues_fin: float
+    dias_con_actividad: int
+    dias_transcurridos: int
+
+
+class ReporteTareas(BaseModel):
+    total: int
+    completadas: int
+    en_curso: int
+    sin_recurso: int
+    vencidas: list[TareaOut]
+    sin_iniciar_atrasadas: list[TareaOut]
+    avance_planificado: float
+    avance_real: float
+
+
+class ReporteParte(BaseModel):
+    nombre: str
+    horas: float
+    porcentaje: float
+
+
+class ReporteDistribucion(BaseModel):
+    por_recurso: list[ReporteParte]
+    por_rol: list[ReporteParte]
+    actividades: list[ReporteParte]
+
+
+class ProyectoReporte(BaseModel):
+    proyecto: ProyectoResumen
+    fecha_corte: date
+    periodo: Literal['semana', 'mes']
+    salud: ReporteSalud
+    periodos: list[ReportePeriodo]
+    ritmo: ReporteRitmo
+    ejecucion: ReporteEjecucion
+    tareas: ReporteTareas
+    distribucion: ReporteDistribucion

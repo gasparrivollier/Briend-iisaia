@@ -205,7 +205,7 @@ El workflow de CI `.github/workflows/tp-final.yml` corre todo lo anterior y adem
 **Limitaciones y pendientes:**
 - Los booleanos de usuario ahora son `true`/`false` en lugar de `1`/`0`.
 - Un JSON mal formado devuelve 400 antes que el 401 de sesión ausente.
-- La **Fase 5** queda para más adelante: reporting (desvíos y proyecciones), cargas masivas por CSV y alertas por correo (worker + SMTP; Mailpit ya está disponible en desarrollo). Ver [docs/PLAN.md](docs/PLAN.md).
+- El **reporting** (dashboard por proyecto) está implementado. De la **Fase 5** quedan cargas masivas por CSV (las alertas por correo y el Gantt ya están hechos; Mailpit está disponible en desarrollo). Ver [docs/PLAN.md](docs/PLAN.md).
 
 ## Documentación y proceso
 

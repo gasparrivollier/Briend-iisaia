@@ -143,3 +143,12 @@ La versión anterior se diseñó como una aplicación local. El nuevo objetivo e
 ## Documentación a actualizar
 
 `docs/API.md` (endpoints y errores nuevos), `docs/ESPECIFICACION.md` (el Gantt deja de estar pendiente, y reglas 1–5), `README.md` (fila "Planificar tareas y dependencias" en la matriz de permisos y la regla de borrado), `docs/VALIDACION.md`, el estado de este plan y `prompts.md`. `FEATURE_PLAN.md` es del usuario: se le propone pasar "Planificacion Gantt" a Done, pero no se edita sin su visto bueno.
+
+## Reporting: dashboard por proyecto (2026-10-07)
+
+Decisiones del usuario: pantalla nueva `/proyectos/:id/dashboard` enlazada desde el detalle; los cuatro grupos de bloques en la primera versión (salud/desvíos, horas por período y distribución, ritmo y proyecciones, salud de tareas); gráficos con una librería (Chart.js + vue-chartjs).
+
+- Los cálculos viven en el backend (`reports.py`, `GET /api/proyectos/{id}/reporte`) y reutilizan la regla de prorrateo del gráfico de horas acumuladas (`projectHours.ts`), para que ambos coincidan.
+- La fecha de fin proyectada se calcula en el frontend con la misma regresión lineal del gráfico (`projectedEndDate`); en la pantalla cada ritmo muestra su origen (ventana de 28 días vs. regresión sobre toda la historia).
+- Límites: no hay horas por tarea del Gantt ni desvíos por dependencias (ambos descartados).
+- Pendiente de confirmar con el usuario: los umbrales del semáforo (≥ 1 en orden, ≥ 0,85 atención).

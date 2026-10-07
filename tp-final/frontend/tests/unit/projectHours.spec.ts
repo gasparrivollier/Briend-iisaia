@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { projectHours, projectForecast } from '@/projectHours'
+import { projectHours, projectForecast, forecastStatus, projectedEndDate } from '@/projectHours'
 import ProjectHoursChart from '@/components/ProjectHoursChart.vue'
 
 const project = { fecha_inicio: '2026-10-01', fecha_fin: '2026-10-03', horas_requeridas: 36 }
@@ -106,5 +106,32 @@ describe('forecast status', () => {
     const wrapper = mount(ProjectHoursChart, { props: { project, consumptions: [] } })
     expect(wrapper.find('.forecast-status').exists()).toBe(false)
     wrapper.unmount()
+  })
+})
+
+describe('forecast status and projected end date', () => {
+  const plan = { fecha_inicio: '2026-10-01', fecha_fin: '2026-10-10', horas_requeridas: 100 }
+  const row = (from: string, to: string, hours: number) => ({ fecha_inicio: from, fecha_fin: to, horas_consumidas: hours })
+  it('classifies the projection with a 15 % tolerance', () => {
+    expect(forecastStatus(null, 100)).toBeNull()
+    expect(forecastStatus(115, 100)).toEqual({ text: 'Aceptable', acceptable: true })
+    expect(forecastStatus(116, 100)?.text).toBe('Sobre aplicacion')
+    expect(forecastStatus(84, 100)?.text).toBe('Falta de Recursos')
+  })
+  it('extends the regression line from the last recorded day', () => {
+    const rows = [row('2026-10-01', '2026-10-03', 30)] // 10 h/day, 30 h after day 3 -> 100 h on Oct 10
+    expect(projectForecast(projectHours(plan, rows), rows, plan.fecha_fin).slope).toBeCloseTo(10)
+    expect(projectedEndDate(projectHours(plan, rows), rows, 100)).toBe('2026-10-10')
+  })
+  it('still projects a date for an overdue project and returns the real day once reached', () => {
+    const overdue = [row('2026-10-01', '2026-10-12', 60)]
+    expect(projectedEndDate(projectHours(plan, overdue), overdue, 100)).toBe('2026-10-20')
+    const done = [row('2026-10-01', '2026-10-02', 100)]
+    expect(projectedEndDate(projectHours(plan, done), done, 100)).toBe('2026-10-02')
+  })
+  it('has no date without a usable trend', () => {
+    const one = [row('2026-10-01', '2026-10-01', 5)]
+    expect(projectedEndDate(projectHours(plan, one), one, 100)).toBeNull()
+    expect(projectedEndDate(projectHours(plan, []), [], 100)).toBeNull()
   })
 })
