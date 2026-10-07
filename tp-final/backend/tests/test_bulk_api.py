@@ -107,3 +107,65 @@ def test_template_download(client, seeded):
     assert 'plantilla-roles.csv' in response.headers['content-disposition']
     assert response.content.decode('utf-8-sig').splitlines()[0] == 'rol_descripcion'
     assert client.get('/api/carga-masiva/nada/plantilla.csv').status_code == 404
+
+
+RECURSOS = (
+    'recurso_nombre,email,es_admin,password\ncarla,carla@example.com,si,Secreta123\ndario,,no,Secreta456\n'
+)
+
+
+def test_recursos_confirm_creates_hashed_users_that_must_change_password(client, seeded):
+    login(client)
+    assert summary(upload(client, 'recursos', 'r.csv', RECURSOS, confirmar=True)) == (2, 2, 0, 2, True)
+    assert scalar(seeded, "SELECT es_admin FROM recurso WHERE recurso_nombre='carla'") is True
+    assert scalar(seeded, "SELECT debe_cambiar_password FROM recurso WHERE recurso_nombre='dario'") is True
+    assert scalar(seeded, "SELECT password FROM recurso WHERE recurso_nombre='dario'").startswith('$argon2')
+    logged = login(client, 'dario', 'Secreta456')
+    assert logged.status_code == 200 and logged.json()['user']['debe_cambiar_password'] is True
+
+
+def test_recursos_row_errors(client, seeded):
+    login(client)
+    content = (
+        'nombre,email,es_admin,contraseña\n'
+        'ANA,,no,Secreta123\n'  # exists (case-insensitive)
+        'eva,no-es-email,no,Secreta123\n'
+        'fede,,quizás,Secreta123\n'
+        'gina,,no,corta\n'
+        'hugo,,no,Secreta123\n'
+        'HUGO,,no,Secreta123\n'  # duplicate inside the file
+    )
+    body = upload(client, 'recursos', 'r.csv', content).json()
+    fields = [(e['fila'], e['campo']) for e in body['errores']]
+    assert fields == [
+        (2, 'recurso_nombre'),
+        (3, 'email'),
+        (4, 'es_admin'),
+        (5, 'password'),
+        (7, 'recurso_nombre'),
+    ]
+    assert body['validas'] == 1
+
+
+def test_recursos_are_capped_at_200_rows_and_admin_only(client, seeded):
+    login(client)
+    rows = ''.join(f'u{i},,no,Secreta123\n' for i in range(201))
+    too_big = upload(client, 'recursos', 'r.csv', 'recurso_nombre,email,es_admin,password\n' + rows)
+    assert (too_big.status_code, too_big.json()['error']['code']) == (400, 'archivo_demasiado_grande')
+    login(client, 'ana', 'Personal123')
+    assert upload(client, 'recursos', 'r.csv', RECURSOS).status_code == 403
+
+
+def test_recursos_single_row_two_problems(client, seeded):
+    login(client)
+    content = (
+        'recurso_nombre,email,es_admin,password\n'
+        'ANA,,no,short\n'  # exists AND password too short
+    )
+    body = upload(client, 'recursos', 'r.csv', content).json()
+    errors = body['errores']
+    assert len(errors) == 2
+    assert errors[0]['fila'] == 2
+    assert errors[1]['fila'] == 2
+    fields = {e['campo'] for e in errors}
+    assert 'password' in fields and 'recurso_nombre' in fields
