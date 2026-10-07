@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from .conftest import login, scalar, upload, xlsx_bytes
 
 
@@ -169,3 +171,53 @@ def test_recursos_single_row_two_problems(client, seeded):
     assert errors[1]['fila'] == 2
     fields = {e['campo'] for e in errors}
     assert 'password' in fields and 'recurso_nombre' in fields
+
+
+PROYECTOS = (
+    'proyecto_nombre;fecha_inicio;fecha_fin;horas_requeridas;owner;proyect_status;porcentaje_avance\n'
+    'Alfa;01/10/2026;31/10/2026;1.200,5;ana;En curso;10\n'
+    'Beta;2026-10-01;2026-10-15;40;BRUNO;Pendiente;\n'
+)
+
+
+def test_proyectos_excel_flavoured_csv_loads_without_edits(client, seeded):
+    login(client)
+    assert summary(upload(client, 'proyectos', 'p.csv', PROYECTOS, confirmar=True)) == (2, 2, 0, 2, True)
+    assert scalar(seeded, "SELECT horas_requeridas FROM proyecto WHERE proyecto_nombre='Alfa'") == 1200.5
+    assert scalar(seeded, "SELECT owner_id FROM proyecto WHERE proyecto_nombre='Beta'") == 3
+    assert scalar(seeded, "SELECT porcentaje_avance FROM proyecto WHERE proyecto_nombre='Beta'") == 0
+
+
+def test_proyectos_owner_by_id_and_xlsx_date_cells(client, seeded):
+    login(client)
+    content = xlsx_bytes(
+        [
+            [
+                'proyecto_nombre',
+                'fecha_inicio',
+                'fecha_fin',
+                'horas_requeridas',
+                'owner_id',
+                'proyect_status',
+            ],
+            ['Gamma', datetime(2026, 10, 1), datetime(2026, 12, 1), 10, 2.0, 'Pausado'],
+        ]
+    )
+    assert summary(upload(client, 'proyectos', 'p.xlsx', content, confirmar=True)) == (1, 1, 0, 1, True)
+    assert scalar(seeded, "SELECT owner_id FROM proyecto WHERE proyecto_nombre='Gamma'") == 2
+
+
+def test_proyectos_row_errors_are_all_reported(client, seeded):
+    login(client)
+    content = (
+        'proyecto_nombre,fecha_inicio,fecha_fin,horas_requeridas,owner,proyect_status\n'
+        'X,2026-10-10,2026-10-01,-5,nadie,Cancelado\n'
+    )
+    body = upload(client, 'proyectos', 'p.csv', content).json()
+    assert {e['campo'] for e in body['errores']} >= {'owner', 'horas_requeridas', 'proyect_status'}
+    assert body['validas'] == 0
+
+
+def test_proyectos_admin_only(client, seeded):
+    login(client, 'ana', 'Personal123')
+    assert upload(client, 'proyectos', 'p.csv', PROYECTOS).status_code == 403
