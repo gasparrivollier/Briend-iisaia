@@ -10,30 +10,9 @@ from .config import Settings, get_settings
 from .db import make_engine, make_sessionmaker
 from .errors import APIError, error_response
 from .routers import alerts, auth, consumptions, projects, reports, resources, roles, tasks
-from .schemas import BAD_NUMBER, BAD_REFERENCE, REQUIRED
+from .validation import validation_message
 
 logger = logging.getLogger('pulso')
-
-# Message for a field missing from the body, by the kind of field (mirrors the Flask helpers).
-MISSING = {
-    'horas_requeridas': BAD_NUMBER,
-    'horas_consumidas': BAD_NUMBER,
-    'porcentaje_avance': BAD_NUMBER,
-    'proyecto_id': BAD_REFERENCE,
-    'rol_id': BAD_REFERENCE,
-    'fecha_inicio': 'Ingresá fechas válidas.',
-    'fecha_fin': 'Ingresá fechas válidas.',
-}
-
-
-def validation_message(error: dict) -> str:
-    if error.get('type') == 'pulso':
-        return error['msg']
-    if error.get('type') == 'missing':
-        return MISSING.get(str(error['loc'][-1]), REQUIRED)
-    if error.get('type') == 'json_invalid':
-        return 'El cuerpo JSON no es válido.'
-    return 'Datos inválidos.'
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
