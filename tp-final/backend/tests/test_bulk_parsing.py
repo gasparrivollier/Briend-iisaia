@@ -1,4 +1,5 @@
 import io
+import time
 import zipfile
 from datetime import date, datetime
 
@@ -12,7 +13,7 @@ from pulso.bulk.cells import (
     to_number,
     to_text,
 )
-from pulso.bulk.parsing import parse_file
+from pulso.bulk.parsing import MAX_COLUMNS, MAX_UNCOMPRESSED, parse_file
 from pulso.errors import APIError
 
 from .conftest import xlsx_bytes
@@ -156,3 +157,76 @@ def test_csv_unterminated_quote_is_rejected():
     with pytest.raises(APIError) as caught:
         parse_file('a.csv', b'a,b\n"x,1\ny,2\n', 10)
     assert caught.value.status == 400 and caught.value.code == 'archivo_invalido'
+
+
+def sparse_xlsx(gaps, gap, dimension='A1:XFD1048576'):
+    """A tiny workbook declaring the whole sheet as its dimension, with a data row every `gap` lines."""
+    workbook = io.BytesIO()
+    from openpyxl import Workbook
+
+    Workbook().save(workbook)
+    first = '<row r="1"><c r="A1" t="inlineStr"><is><t>rol_descripcion</t></is></c></row>'
+    rows = [first] + [
+        f'<row r="{1 + k * gap}"><c r="A{1 + k * gap}" t="inlineStr"><is><t>r{k}</t></is></c></row>'
+        for k in range(1, gaps + 1)
+    ]
+    sheet = (
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f'<dimension ref="{dimension}"/><sheetData>' + ''.join(rows) + '</sheetData></worksheet>'
+    ).encode()
+    source = zipfile.ZipFile(workbook)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
+        for item in source.infolist():
+            data = sheet if item.filename == 'xl/worksheets/sheet1.xml' else source.read(item.filename)
+            archive.writestr(item, data)
+    return out.getvalue()
+
+
+def test_xlsx_with_a_huge_declared_dimension_and_sparse_rows_parses_fast():
+    started = time.monotonic()
+    parsed = parse_file('a.xlsx', sparse_xlsx(3, 1000), 10)
+    assert [row['rol_descripcion'] for _, row in parsed.rows] == ['r1', 'r2', 'r3']
+    assert time.monotonic() - started < 2
+
+
+def test_csv_header_with_tens_of_thousands_of_columns_is_rejected_fast():
+    content = ','.join(f'c{i}' for i in range(40_000)).encode() + b'\n1\n'
+    started = time.monotonic()
+    with pytest.raises(APIError) as caught:
+        parse_file('a.csv', content, 10)
+    assert caught.value.code == 'archivo_invalido' and 'columnas' in str(caught.value)
+    assert time.monotonic() - started < 2
+
+
+def test_header_row_at_the_column_cap_is_accepted_and_one_more_is_not():
+    ok = ','.join(f'c{i}' for i in range(MAX_COLUMNS)) + '\n' + ','.join('1' for _ in range(MAX_COLUMNS))
+    assert len(parse_file('a.csv', ok.encode(), 10).headers) == MAX_COLUMNS
+    wide = [f'c{i}' for i in range(MAX_COLUMNS + 1)]
+    for name, content in (
+        ('a.csv', (','.join(wide) + '\n1\n').encode()),
+        ('a.xlsx', xlsx_bytes([wide, [1]])),
+    ):
+        with pytest.raises(APIError) as caught:
+            parse_file(name, content, 10)
+        assert caught.value.code == 'archivo_invalido'
+
+
+def test_xlsx_with_a_huge_decompressed_size_is_rejected():
+    original = zipfile.ZipFile(io.BytesIO(xlsx_bytes([['rol'], ['QA']])))
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as bomb:
+        for item in original.namelist():
+            bomb.writestr(item, original.read(item))
+        bomb.writestr('xl/relleno.bin', b'\0' * (MAX_UNCOMPRESSED + 1))
+    assert len(buffer.getvalue()) < 1_000_000
+    with pytest.raises(APIError) as caught:
+        parse_file('a.xlsx', buffer.getvalue(), 10)
+    assert caught.value.code == 'archivo_invalido' and 'descomprimido' in str(caught.value)
+
+
+def test_nul_characters_are_rejected_in_csv():
+    # xlsx cannot carry NUL (XML 1.0 forbids it), so only text files need the check
+    with pytest.raises(APIError) as caught:
+        parse_file('a.csv', b'rol\nQA\x00x\n', 10)
+    assert caught.value.code == 'archivo_invalido' and 'nulos' in str(caught.value)

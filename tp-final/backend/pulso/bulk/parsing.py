@@ -3,6 +3,7 @@
 import csv
 import io
 import zipfile
+from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
@@ -14,6 +15,8 @@ from .cells import blank_to_none, normalize_header
 
 DELIMITERS = ',;\t|'
 MAX_BLANK_RUN = 10_000  # consecutive blank lines after which scanning stops (styled-but-empty tails)
+MAX_COLUMNS = 100  # widest header row accepted
+MAX_UNCOMPRESSED = 50 * 1024 * 1024  # bytes an .xlsx may expand to
 
 
 @dataclass
@@ -31,6 +34,8 @@ def text_rows(content: bytes) -> Iterator[tuple[int, list[Any]]]:
         text = content.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = content.decode('cp1252', errors='replace')
+    if '\x00' in text:
+        raise invalid('El archivo contiene caracteres nulos.')
     first = next((line for line in text.splitlines() if line.strip()), '')
     delimiter = max(DELIMITERS, key=first.count) if any(d in first for d in DELIMITERS) else ','
     reader = csv.reader(io.StringIO(text, newline=''), delimiter=delimiter, strict=True)
@@ -45,12 +50,21 @@ def xlsx_rows(content: bytes) -> Iterator[tuple[int, list[Any]]]:
     if not zipfile.is_zipfile(io.BytesIO(content)):
         raise invalid('El archivo .xlsx no es válido.')
     try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            expanded = sum(item.file_size for item in archive.infolist())
+    except Exception:  # corrupt central directory
+        raise invalid('El archivo .xlsx no es válido.') from None
+    if expanded > MAX_UNCOMPRESSED:
+        raise invalid('El archivo .xlsx es demasiado grande una vez descomprimido.')
+    try:
         workbook = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
         sheet = workbook.worksheets[0]
+        # A declared <dimension> of A1:XFD1048576 would make openpyxl pad every missing row to 16384 columns.
+        sheet.reset_dimensions()
     except Exception:  # openpyxl raises many types for broken workbooks
         raise invalid('El archivo .xlsx no es válido.') from None
     try:
-        rows = iter(sheet.iter_rows(values_only=True))
+        rows = iter(sheet.iter_rows(max_col=MAX_COLUMNS + 1, values_only=True))
         number = 0
         while True:
             try:
@@ -87,8 +101,13 @@ def parse_file(filename: str, content: bytes, max_rows: int) -> ParsedFile:
             continue
         blank_run = 0
         if headers is None:
+            while cells and blank_to_none(cells[-1]) is None:
+                cells = cells[:-1]
+            if len(cells) > MAX_COLUMNS:
+                raise invalid(f'El archivo tiene más de {MAX_COLUMNS} columnas.')
             headers = ['' if cell is None else normalize_header(cell) for cell in cells]
-            duplicated = sorted({h for h in headers if h and headers.count(h) > 1})
+            counts = Counter(h for h in headers if h)
+            duplicated = sorted(h for h, count in counts.items() if count > 1)
             if duplicated:
                 raise invalid('Hay columnas repetidas: ' + ', '.join(duplicated) + '.')
             continue
