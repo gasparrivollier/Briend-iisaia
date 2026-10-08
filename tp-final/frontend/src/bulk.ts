@@ -4,6 +4,9 @@ export type BulkKey = 'roles' | 'recursos' | 'proyectos' | 'tareas' | 'consumos'
 export type BulkEntity = { key: BulkKey; label: string; columns: string }
 
 export const ACCEPT = '.csv,.txt,.xlsx'
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+export const MAX_UPLOAD_MESSAGE = 'El archivo supera el tamaño máximo permitido (5 MiB).'
+export const tooLarge = (file: { size: number }) => file.size > MAX_UPLOAD_BYTES
 
 // Dependency order: a file cannot reference rows created by the same upload.
 const ENTITIES: BulkEntity[] = [

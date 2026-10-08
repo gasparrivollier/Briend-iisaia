@@ -48,6 +48,17 @@ describe('API client', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('turns a non-JSON 413 (the proxy rejecting a big upload) into the friendly size message', async () => {
+    mockFetch(new Response('Request Entity Too Large', { status: 413, headers: { 'Content-Type': 'text/plain' } }))
+    const error = await api.roles().catch((e) => e)
+    expect(error).toBeInstanceOf(APIError)
+    expect([error.status, error.code, error.message]).toEqual([
+      413,
+      'http_413',
+      'El archivo supera el tamaño máximo permitido (5 MiB).',
+    ])
+  })
+
   it('reports network failures and invalid responses in Spanish', async () => {
     mockFetch(new TypeError('Failed to fetch'))
     await expect(api.roles()).rejects.toMatchObject({ code: 'network_error', status: 0 })

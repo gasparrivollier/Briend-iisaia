@@ -6,9 +6,9 @@ defineEmits<{ confirm: [] }>()
 </script>
 
 <template>
-  <section class="panel" aria-live="polite">
+  <section class="panel">
     <h2>Vista previa</h2>
-    <p>
+    <p aria-live="polite">
       <strong>{{ result.total }}</strong> filas leídas · <strong>{{ result.validas }}</strong> válidas ·
       <strong>{{ result.errores_total }}</strong> errores
     </p>

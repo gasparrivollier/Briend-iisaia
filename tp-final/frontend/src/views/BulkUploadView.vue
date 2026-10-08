@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, type Schemas } from '@/api/client'
-import { ACCEPT, availableEntities } from '@/bulk'
+import { ACCEPT, availableEntities, MAX_UPLOAD_MESSAGE, tooLarge } from '@/bulk'
 import BulkResult from '@/components/BulkResult.vue'
 import LoadState from '@/components/LoadState.vue'
 import PageHeading from '@/components/PageHeading.vue'
@@ -28,8 +28,16 @@ const input = ref<HTMLInputElement | null>(null)
 watch(entity, () => (result.value = null))
 
 function pick(event: Event) {
-  file.value = (event.target as HTMLInputElement).files?.[0] ?? null
+  const target = event.target as HTMLInputElement
+  const picked = target.files?.[0] ?? null
   result.value = null
+  if (picked && tooLarge(picked)) {
+    showNotice(MAX_UPLOAD_MESSAGE)
+    target.value = ''
+    file.value = null
+    return
+  }
+  file.value = picked
 }
 
 async function send(confirm: boolean) {
@@ -59,14 +67,14 @@ async function send(confirm: boolean) {
   <PageHeading title="Carga masiva" subtitle="Subí un archivo .csv, .xlsx o .txt; vas a ver una vista previa antes de guardar." />
   <LoadState :loading="projects.isPending.value" :error="projects.error.value" @retry="projects.refetch()">
     <form class="panel editor" @submit.prevent="send(false)">
-      <SelectField v-model="entity" name="entidad" label="¿Qué querés cargar?" :options="options" />
+      <SelectField v-model="entity" name="entidad" label="¿Qué querés cargar?" :options="options" :disabled="busy" />
       <p v-if="selected" class="muted">
         Columnas: {{ selected.columns }}.
         <a :href="api.bulkTemplateUrl(selected.key)" download>Descargar plantilla</a>
       </p>
       <div class="field">
         <label for="archivo">Archivo (.csv, .xlsx o .txt, hasta 5 MiB)</label>
-        <input id="archivo" ref="input" type="file" class="form-control" :accept="ACCEPT" required @change="pick" />
+        <input id="archivo" ref="input" type="file" class="form-control" :accept="ACCEPT" required @click="($event.target as HTMLInputElement).value = ''" @change="pick" />
       </div>
       <div class="actions">
         <button class="btn btn-primary" :disabled="busy || !entity || !file">Vista previa</button>
