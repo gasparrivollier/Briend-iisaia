@@ -1,0 +1,12 @@
+# Dependencias de la función serverless de Vercel (api/index.py). Espejo de backend/pyproject.toml.
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.8
+pydantic-settings>=2.4
+sqlalchemy>=2.0.30
+psycopg[binary]>=3.2
+alembic>=1.13
+pwdlib[argon2]>=0.2
+werkzeug>=3.1
+python-multipart>=0.0.32
+openpyxl>=3.1.5
