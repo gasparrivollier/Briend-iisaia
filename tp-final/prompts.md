@@ -583,3 +583,13 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 **Acciones realizadas:**
 - Se volvió a comprobar el servidor `claude-design`: sigue figurando como fallido (HTTP 403) en esta sesión.
 - Se creó un artefacto Slides nuevo (https://claude.ai/artifact/SDqLZpNuLpgXdJBMnFuyAs, "Pulso - Defensa final v2") y se publicaron en él las mismas 14 diapositivas y el índice `deck.json`. El artefacto anterior (3588yRRZGuDzzGPGH1zwQu) no se tocó ni se borró.
+
+## Prompt: "Alright. we will make it but not in this repo. Go to CEIA/tp-final iisaia. there is a fork of this repo there"
+
+**Acciones realizadas:**
+- Se movió el trabajo al fork `/home/gaspi/Documents/CEIA/tp-final iisaia/Briend-iisaia` (remoto `origin` = gasparrivollier/Briend-iisaia, `upstream` = rmbriend/Briend-iisaia). Se verificó que `main` está limpio y al día con `upstream/main` (mismo commit 9ee581d).
+- Se creó la rama `feat-vercel-demo` para el despliegue demo en Vercel (frontend estático + FastAPI serverless + Neon).
+- En el repo original quedaron sin commitear las entradas de `prompts.md` de esta sesión (preguntas sobre Vercel/Neon); no se tocó nada más allá.
+- Archivos creados/modificados en la rama `feat-vercel-demo` (dentro de `tp-final/`): `vercel.json` (build del frontend, `frontend/dist`, rewrites `/api/*` → función y SPA → `index.html`, cabeceras de seguridad/CSP), `api/index.py` (entrada ASGI), `requirements.txt` (espejo de las dependencias del backend), `.vercelignore`, y `backend/pulso/db.py` (`make_engine` normaliza `postgresql://` → `postgresql+psycopg://` y, con `VERCEL` definido, usa `NullPool` y `prepare_threshold=None` por el pgbouncer de Neon).
+- Verificación: `ruff check` y `ruff format --check` sin problemas; `make_engine` con `VERCEL=1` devuelve `NullPool` y driver `postgresql+psycopg`; `api/index.py` importa y expone la app FastAPI; `uv run pytest -q` → 217 passed.
+- No se ejecutó `init-db` contra Neon ni se desplegó (falta confirmación del usuario y su cuenta de Vercel). Las credenciales de Neon no se guardaron en ningún archivo.
