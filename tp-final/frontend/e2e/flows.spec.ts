@@ -204,3 +204,24 @@ test('project owner plans tasks on the Gantt', async ({ page }) => {
   await expect(page.getByText('No se pudo cargar la página')).toBeVisible()
   expect(errors).toEqual([])
 })
+
+test('admin bulk-loads roles: errors block the confirm, a fixed file loads', async ({ page }) => {
+  await login(page, 'admin', 'AdminNueva1')
+  await page.getByRole('link', { name: 'Carga masiva' }).click()
+  await page.getByLabel('¿Qué querés cargar?').selectOption('roles')
+  const upload = (name: string, text: string) =>
+    page.setInputFiles('#archivo', { name, mimeType: 'text/csv', buffer: Buffer.from(text) })
+
+  await upload('roles.csv', 'rol_descripcion\nAnalista\nQA\n') // "Analista" already exists
+  await page.getByRole('button', { name: 'Vista previa' }).click()
+  await expect(page.getByText('Ya existe un rol con esa descripción.')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Confirmar carga/ })).toHaveCount(0)
+
+  await upload('roles.csv', 'rol_descripcion\nQA\nSoporte\n')
+  await page.getByRole('button', { name: 'Vista previa' }).click()
+  await page.getByRole('button', { name: 'Confirmar carga de 2 filas' }).click()
+  await expect(page.getByText('Se cargaron 2 registros de roles.')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Roles' }).click()
+  await expect(page.getByRole('cell', { name: 'Soporte' })).toBeVisible()
+})
