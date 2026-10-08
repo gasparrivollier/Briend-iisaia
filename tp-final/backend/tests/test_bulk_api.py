@@ -408,3 +408,59 @@ def test_consumos_non_admin_confirm_with_a_row_error_changes_nothing(client, see
     assert (body['creadas'], body['confirmada'], body['errores_total']) == (0, False, 1)
     assert scalar(seeded, 'SELECT count(*) FROM consumo') == 1
     smtp.assert_not_called()
+
+
+def add_project(seeded, name):
+    with seeded.state.engine.begin() as connection:
+        connection.execute(
+            text(
+                """INSERT INTO proyecto (proyecto_nombre,fecha_inicio,fecha_fin,horas_requeridas,owner_id,
+                proyect_status,porcentaje_avance)
+                VALUES (:n,'2026-09-01','2026-09-30',10,2,'En curso',0)"""
+            ),
+            {'n': name},
+        )
+
+
+def test_tareas_name_and_id_must_agree_when_both_are_given(client, seeded):
+    add_project(seeded, 'Otro')
+    login(client)
+    content = (
+        'proyecto,proyecto_id,tarea_nombre,fecha_inicio,fecha_fin\n'
+        'Otro,1,Cruzada,2026-09-02,2026-09-03\n'  # name of project 2, id of project 1
+        'Fantasma,1,Inexistente,2026-09-02,2026-09-03\n'
+        'proyecto EJEMPLO,1,Coincide,2026-09-02,2026-09-03\n'
+    )
+    body = upload(client, 'tareas', 't.csv', content).json()
+    assert [(e['fila'], e['campo']) for e in body['errores']] == [(2, 'proyecto'), (3, 'proyecto')]
+    assert (
+        'no coincide con el id 1' in body['errores'][0]['mensaje']
+        and '«Otro»' in body['errores'][0]['mensaje']
+    )
+    assert body['validas'] == 1
+
+
+def test_consumos_recurso_and_rol_name_and_id_must_agree(client, seeded, smtp):
+    login(client)
+    content = (
+        'proyecto,recurso,recurso_id,rol,rol_id,fecha_inicio,fecha_fin,horas_consumidas,tarea\n'
+        'Proyecto ejemplo,bruno,2,Analista,1,2026-10-01,2026-10-01,2,Uno\n'
+        'Proyecto ejemplo,ana,2,Otro rol,1,2026-10-01,2026-10-01,2,Dos\n'
+        'Proyecto ejemplo,ana,2,analista,1,2026-10-01,2026-10-01,2,Tres\n'
+    )
+    body = upload(client, 'consumos', 'c.csv', content).json()
+    assert [(e['fila'], e['campo']) for e in body['errores']] == [(2, 'recurso'), (3, 'rol')]
+    assert body['validas'] == 1
+
+
+def test_proyectos_owner_and_owner_id_must_agree_when_both_are_given(client, seeded):
+    login(client)
+    head = 'proyecto_nombre,fecha_inicio,fecha_fin,horas_requeridas,owner,owner_id,proyect_status\n'
+    content = (
+        head
+        + 'Uno,2026-10-01,2026-10-02,5,bruno,2,En curso\n'
+        + 'Dos,2026-10-01,2026-10-02,5,ANA,2,En curso\n'
+    )
+    body = upload(client, 'proyectos', 'p.csv', content).json()
+    assert [(e['fila'], e['campo']) for e in body['errores']] == [(2, 'owner')]
+    assert 'no coincide con el id 2' in body['errores'][0]['mensaje'] and body['validas'] == 1

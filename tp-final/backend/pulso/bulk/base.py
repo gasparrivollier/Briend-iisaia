@@ -56,6 +56,10 @@ def gather(*parts: Callable[[], Any]) -> list[Any]:
     return results
 
 
+def mismatch(name: Any, ident: int) -> str:
+    return f'El nombre «{name}» no coincide con el id {ident}.'
+
+
 def reference_from(
     raw: dict[str, Any],
     id_column: str,
@@ -65,7 +69,7 @@ def reference_from(
     label: str,
     required: bool = True,
 ) -> int | None:
-    """Resolve a related record from an id column (wins) or a case-insensitive name column."""
+    """Resolve a related record from an id or a case-insensitive name; if both come, they must agree."""
     given_id, given_name = to_id(raw.get(id_column)), to_text(raw.get(name_column))
     if given_id is not None:
         try:
@@ -74,6 +78,8 @@ def reference_from(
             raise problem(id_column, BAD_REFERENCE) from None
         if found not in ids:
             raise problem(id_column, f'No existe {label} con id {found}.')
+        if given_name is not None and names.get(str(given_name).lower()) != found:
+            raise problem(name_column, mismatch(given_name, found))
         return found
     if given_name is not None:
         found = names.get(str(given_name).lower())
@@ -133,6 +139,8 @@ class Context:
                 raise problem('proyecto_id', BAD_REFERENCE) from None
             if found not in self.projects:
                 raise problem('proyecto_id', f'No existe el proyecto con id {found}.')
+            if given_name is not None and found not in self.project_names.get(str(given_name).lower(), []):
+                raise problem('proyecto', mismatch(given_name, found))
             return self.projects[found]
         if given_name is None:
             raise problem('proyecto', 'Indicá el proyecto (proyecto o proyecto_id).')
