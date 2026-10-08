@@ -199,6 +199,53 @@ def test_xlsx_with_a_huge_declared_dimension_and_sparse_rows_parses_fast():
     assert time.monotonic() - started < 2
 
 
+def xfd_xlsx(rows, data_every):
+    """Header, then `rows` lines whose only cell is an empty styled cell at column XFD."""
+    from openpyxl import Workbook
+
+    workbook = io.BytesIO()
+    Workbook().save(workbook)
+    lines = ['<row r="1"><c r="A1" t="inlineStr"><is><t>rol_descripcion</t></is></c></row>']
+    for r in range(2, rows + 2):
+        if r % data_every == 0:
+            lines.append(f'<row r="{r}"><c r="A{r}" t="inlineStr"><is><t>x{r}</t></is></c></row>')
+        else:
+            lines.append(f'<row r="{r}"><c r="XFD{r}"/></row>')
+    sheet = (
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<sheetData>' + ''.join(lines) + '</sheetData></worksheet>'
+    ).encode()
+    source = zipfile.ZipFile(workbook)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
+        for item in source.infolist():
+            data = sheet if item.filename == 'xl/worksheets/sheet1.xml' else source.read(item.filename)
+            archive.writestr(item, data)
+    return out.getvalue()
+
+
+def test_xlsx_rows_whose_only_cell_is_at_column_xfd_parse_fast():
+    content = xfd_xlsx(6000, 1500)
+    started = time.monotonic()
+    parsed = parse_file('a.xlsx', content, 10)
+    assert [line for line, _ in parsed.rows] == [1500, 3000, 4500, 6000]
+    assert time.monotonic() - started < 2
+
+
+def test_csv_header_with_hundreds_of_thousands_of_trailing_commas_parses_fast():
+    base = b'rol_descripcion,horas\nQA,3\n'
+    content = b'rol_descripcion,horas' + b',' * 200_000 + b'\nQA,3\n'
+    started = time.monotonic()
+    try:
+        parsed = parse_file('a.csv', content, 10)
+    except APIError:
+        parsed = None
+    assert time.monotonic() - started < 2
+    assert parsed is not None
+    assert parsed.headers == parse_file('a.csv', base, 10).headers
+    assert parsed.rows == [(2, {'rol_descripcion': 'QA', 'horas': '3'})]
+
+
 def test_csv_header_with_tens_of_thousands_of_columns_is_rejected_fast():
     content = ','.join(f'c{i}' for i in range(40_000)).encode() + b'\n1\n'
     started = time.monotonic()

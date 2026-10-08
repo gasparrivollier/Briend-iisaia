@@ -64,7 +64,9 @@ def xlsx_rows(content: bytes) -> Iterator[tuple[int, list[Any]]]:
     except Exception:  # openpyxl raises many types for broken workbooks
         raise invalid('El archivo .xlsx no es válido.') from None
     try:
-        rows = iter(sheet.iter_rows(values_only=True))
+        # max_col bounds the padding openpyxl adds up to a row's last cell (one extra column so that a header
+        # wider than MAX_COLUMNS is still detected as too wide).
+        rows = iter(sheet.iter_rows(values_only=True, max_col=MAX_COLUMNS + 1))
         number = 0
         while True:
             try:
@@ -74,7 +76,8 @@ def xlsx_rows(content: bytes) -> Iterator[tuple[int, list[Any]]]:
             except Exception:  # truncated/corrupt sheet XML surfaces while iterating
                 raise invalid('El archivo .xlsx no es válido.') from None
             number += 1
-            yield number, list(row)
+            # C-level shortcut for rows with only empty cells; whitespace-only cells are handled downstream.
+            yield number, [] if row.count(None) == len(row) else list(row)
     finally:
         workbook.close()
 
@@ -101,8 +104,10 @@ def parse_file(filename: str, content: bytes, max_rows: int) -> ParsedFile:
             continue
         blank_run = 0
         if headers is None:
-            while cells and blank_to_none(cells[-1]) is None:
-                cells = cells[:-1]
+            end = len(cells)
+            while end and blank_to_none(cells[end - 1]) is None:
+                end -= 1
+            cells = cells[:end]
             if len(cells) > MAX_COLUMNS:
                 raise invalid(f'El archivo tiene más de {MAX_COLUMNS} columnas.')
             headers = ['' if cell is None else normalize_header(cell) for cell in cells]
