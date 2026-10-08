@@ -530,3 +530,8 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 - **Arreglo de seguimiento** `4ee811e` (decisión del controlador, fuera del proceso estándar que no prevé una segunda ronda final, porque ambos fallos eran explotables por cualquier usuario autenticado): `iter_rows(max_col=MAX_COLUMNS + 1)` + descarte rápido de filas vacías y recorte inverso único del encabezado, con 3 tests con cota de tiempo. Re-review: todo resuelto, listo para integrar. Límite conocido (menor): texto de encabezado más allá de la columna 101 tras un hueco se ignora en xlsx.
 - Estado final de la rama `feat-batch-uploads` (21 commits sobre `main`, sin push): backend `pytest` 217 passed y `ruff` limpio; frontend `npm test` 53 passed, `vue-tsc` y `build` ok; e2e Playwright 7/7 (incluye el flujo de carga masiva con multipart real).
 - Pendiente para el usuario: corrida manual en el stack de desarrollo (csv/xlsx/txt por entidad, en orden de dependencias, y el email resumen en Mailpit), `caddy adapt` del Caddyfile al desplegar, y decidir cómo integrar la rama (PR/merge). No se hizo push.
+
+## Prompt: "create a sample file with each extension to upload"
+
+**Acciones realizadas:**
+- Se eligió una cadena coherente de tres archivos de ejemplo, uno por extensión, que se pueden cargar en orden de dependencias sobre una base de desarrollo: `roles.csv` (Roles), `recursos.txt` (Recursos, separado por tabuladores) y `proyectos.xlsx` (Proyectos, con los responsables creados por el archivo anterior). Se guardan en `docs/ejemplos-carga-masiva/`.

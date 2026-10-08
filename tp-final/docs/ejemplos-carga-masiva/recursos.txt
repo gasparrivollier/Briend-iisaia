@@ -1,0 +1,4 @@
+recurso_nombre	email	es_admin	password
+lucia	lucia@example.com	no	Cambiar1234
+martin	martin@example.com	no	Cambiar1234
+sofia	sofia@example.com	no	Cambiar1234
