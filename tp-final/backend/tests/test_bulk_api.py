@@ -464,3 +464,41 @@ def test_proyectos_owner_and_owner_id_must_agree_when_both_are_given(client, see
     body = upload(client, 'proyectos', 'p.csv', content).json()
     assert [(e['fila'], e['campo']) for e in body['errores']] == [(2, 'owner')]
     assert 'no coincide con el id 2' in body['errores'][0]['mensaje'] and body['validas'] == 1
+
+
+def test_proyectos_warn_about_repeated_names_but_stay_valid(client, seeded):
+    login(client)
+    head = 'proyecto_nombre,fecha_inicio,fecha_fin,horas_requeridas,owner,proyect_status\n'
+    content = (
+        head
+        + 'proyecto EJEMPLO,2026-10-01,2026-10-02,5,ana,En curso\n'  # already in the database
+        + 'Nuevo,2026-10-01,2026-10-02,5,ana,En curso\n'
+        + 'nuevo,2026-10-01,2026-10-02,5,ana,En curso\n'  # repeated inside the file
+    )
+    body = upload(client, 'proyectos', 'p.csv', content).json()
+    assert (body['validas'], body['errores_total']) == (3, 0)
+    assert [(w['fila'], w['campo']) for w in body['advertencias']] == [
+        (2, 'proyecto_nombre'),
+        (4, 'proyecto_nombre'),
+    ]
+    assert 'ambiguas' in body['advertencias'][0]['mensaje']
+
+
+def test_tareas_warn_about_repeated_names_in_the_same_project(client, seeded):
+    add_project(seeded, 'Otro')
+    login(client)
+    assert upload(client, 'tareas', 't.csv', TAREAS, confirmar=True).json()['creadas'] == 2
+    content = (
+        'proyecto,tarea_nombre,fecha_inicio,fecha_fin\n'
+        'Proyecto ejemplo,diseño,2026-09-02,2026-09-03\n'  # already in the database
+        'Proyecto ejemplo,Otra,2026-09-02,2026-09-03\n'
+        'Proyecto ejemplo,OTRA,2026-09-02,2026-09-03\n'  # repeated inside the file
+        'Otro,Otra,2026-09-02,2026-09-03\n'  # same name, different project: no warning
+    )
+    body = upload(client, 'tareas', 't.csv', content).json()
+    assert (body['validas'], body['errores_total']) == (4, 0)
+    assert [(w['fila'], w['campo']) for w in body['advertencias']] == [
+        (2, 'tarea_nombre'),
+        (4, 'tarea_nombre'),
+    ]
+    assert 'Se cargará igual' in body['advertencias'][0]['mensaje']

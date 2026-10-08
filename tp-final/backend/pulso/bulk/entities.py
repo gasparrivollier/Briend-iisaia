@@ -112,6 +112,14 @@ def prepare_proyectos(raw: dict[str, Any], ctx: Context) -> Build:
             },
         ),
     )
+    key = data.proyecto_nombre.lower()
+    if key in ctx.project_names or key in ctx.seen('project-names'):
+        ctx.warn(
+            'proyecto_nombre',
+            'Ya hay un proyecto con ese nombre: quizás este archivo ya se cargó, y las referencias por '
+            'nombre serán ambiguas. Se cargará igual.',
+        )
+    ctx.seen('project-names').add(key)
     return lambda: Proyecto(
         proyecto_nombre=data.proyecto_nombre,
         fecha_inicio=data.fecha_inicio,
@@ -191,6 +199,24 @@ def prepare_tareas(raw: dict[str, Any], ctx: Context) -> Build:
         )
     if data.fecha_inicio < project.fecha_inicio or data.fecha_fin > project.fecha_fin:
         raise problem('fecha_inicio', OUTSIDE_PROJECT.format(project.fecha_inicio, project.fecha_fin))
+    known = ctx.seen('task-names')
+    loaded = ctx.seen('tasks-loaded')
+    if project.proyecto_id not in loaded:
+        loaded.add(project.proyecto_id)
+        known.update(
+            (project.proyecto_id, name.lower())
+            for name in ctx.db.scalars(
+                select(Tarea.tarea_nombre).where(Tarea.proyecto_id == project.proyecto_id)
+            )
+        )
+    task_key = (project.proyecto_id, data.tarea_nombre.lower())
+    if task_key in known:
+        ctx.warn(
+            'tarea_nombre',
+            'El proyecto ya tiene una tarea con ese nombre: quizás este archivo ya se cargó. '
+            'Se cargará igual.',
+        )
+    known.add(task_key)
     return lambda: Tarea(
         proyecto_id=project.proyecto_id,
         tarea_nombre=data.tarea_nombre,
