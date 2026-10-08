@@ -599,3 +599,9 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 **Acciones realizadas:**
 - El usuario desplegó la rama `feat-vercel-demo` en Vercel y la página devuelve 500 `FUNCTION_INVOCATION_FAILED`: la función Python falla al invocarse (la captura no trae traza).
 - Se descartó localmente que sea un error de importación simple: `api/index.py` importa y expone la app con las dependencias del backend (ver entrada anterior). Hace falta el log de ejecución de Vercel para ubicar la causa; se le pidió al usuario.
+
+## Prompt: "ah esta usando plantilla de fastapi. como arreglo?"
+
+**Acciones realizadas:**
+- Diagnóstico del usuario: el proyecto de Vercel quedó con el Framework Preset "FastAPI", que trata todo el proyecto como una app FastAPI e ignora el build del frontend (`buildCommand`/`outputDirectory`), de modo que `/` también lo sirve la función.
+- Cambio: se agregó `"framework": null` a `tp-final/vercel.json` (equivale a elegir "Other" en Settings → Build & Development Settings). Sin desplegar ni ejecutar nada contra Neon.
