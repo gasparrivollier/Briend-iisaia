@@ -124,4 +124,17 @@ export const api = {
       : call(http.POST('/api/roles', { body })),
   deleteRole: (identifier: number) =>
     call(http.DELETE('/api/roles/{identifier}', { ...id(identifier), body: {} as never })),
+
+  bulkUpload: (entity: string, file: File, confirm: boolean) => {
+    const form = new FormData()
+    form.append('archivo', file)
+    return call(
+      http.POST('/api/carga-masiva/{entidad}', {
+        params: { path: { entidad: entity }, query: { confirmar: confirm } },
+        body: {} as never, // the real body is the FormData below; the browser sets the multipart boundary
+        bodySerializer: () => form,
+      }),
+    )
+  },
+  bulkTemplateUrl: (entity: string) => `/api/carga-masiva/${entity}/plantilla.csv`,
 }
