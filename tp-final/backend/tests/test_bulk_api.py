@@ -1,5 +1,7 @@
 from datetime import datetime
+from unittest.mock import MagicMock
 
+import pytest
 from sqlalchemy import text
 
 from .conftest import login, scalar, upload, xlsx_bytes
@@ -291,3 +293,118 @@ def test_tareas_bad_date_order_and_unknown_resource_reported_together(client, se
     texts = ' | '.join(e['mensaje'] for e in body['errores'])
     assert 'fantasma' in texts
     assert 'fecha' in texts.lower()
+
+
+@pytest.fixture
+def smtp(monkeypatch):
+    transport = MagicMock()
+    transport.return_value.__enter__.return_value.send_message.return_value = {}
+    monkeypatch.setattr('pulso.mail.smtplib.SMTP', transport)
+    return transport.return_value.__enter__.return_value.send_message
+
+
+CONSUMOS = (
+    'proyecto,recurso,rol,fecha_inicio,fecha_fin,horas_consumidas,tarea\n'
+    'Proyecto ejemplo,ana,Analista,2026-10-01,2026-10-01,4,Uno\n'
+    'Proyecto ejemplo,bruno,analista,2026-10-02,2026-10-02,5,Dos\n'
+)
+OWN_HEADER = 'proyecto,rol,fecha_inicio,fecha_fin,horas_consumidas,tarea\n'
+
+
+def test_consumos_admin_confirm_sends_one_summary_and_one_exceeded_alert(client, seeded, smtp):
+    with seeded.state.engine.begin() as connection:
+        connection.execute(text("UPDATE recurso SET email='ana@example.com' WHERE recurso_id=2"))
+    login(client)
+    assert summary(upload(client, 'consumos', 'c.csv', CONSUMOS, confirmar=True)) == (2, 2, 0, 2, True)
+    assert scalar(seeded, 'SELECT count(*) FROM consumo') == 3
+    subjects = [call.args[0]['Subject'] for call in smtp.call_args_list]
+    assert len(subjects) == 2  # never one email per row
+    assert sum(s.startswith('URGENTE horas aplicadas excedidas') for s in subjects) == 1  # 3 + 9 > 10
+    assert sum(s.startswith('Pulso: 2 consumos') for s in subjects) == 1
+
+
+def test_consumos_preview_sends_nothing(client, seeded, smtp):
+    login(client)
+    assert summary(upload(client, 'consumos', 'c.csv', CONSUMOS)) == (2, 2, 0, 0, False)
+    smtp.assert_not_called()
+    assert scalar(seeded, 'SELECT count(*) FROM consumo') == 1
+
+
+def test_consumos_plain_user_always_logs_as_themselves(client, seeded, smtp):
+    login(client, 'ana', 'Personal123')
+    own = OWN_HEADER + 'Proyecto ejemplo,Analista,2026-10-01,2026-10-01,2,Uno\n'
+    assert summary(upload(client, 'consumos', 'c.csv', own, confirmar=True)) == (1, 1, 0, 1, True)
+    assert scalar(seeded, "SELECT recurso_id FROM consumo WHERE tarea='Uno'") == 2
+    other = (
+        'proyecto,recurso,rol,fecha_inicio,fecha_fin,horas_consumidas,tarea\n'
+        'Proyecto ejemplo,bruno,Analista,2026-10-01,2026-10-01,2,Dos\n'
+    )
+    body = upload(client, 'consumos', 'c.csv', other).json()
+    assert body['errores'][0]['campo'] == 'recurso' and body['validas'] == 0
+
+
+def test_consumos_plain_user_recurso_id_of_someone_else_is_a_row_error(client, seeded, smtp):
+    login(client, 'ana', 'Personal123')
+    content = (
+        'proyecto,recurso_id,rol,fecha_inicio,fecha_fin,horas_consumidas,tarea\n'
+        'Proyecto ejemplo,3,Analista,2026-10-01,2026-10-01,2,Dos\n'
+    )
+    body = upload(client, 'consumos', 'c.csv', content).json()
+    # the preparer reports it on the generic 'recurso' column, whichever column carried the reference
+    assert [(e['fila'], e['campo']) for e in body['errores']] == [(2, 'recurso')]
+
+
+def test_consumos_admin_must_name_the_resource(client, seeded, smtp):
+    login(client)
+    content = OWN_HEADER + 'Proyecto ejemplo,Analista,2026-10-01,2026-10-01,2,Uno\n'
+    assert upload(client, 'consumos', 'c.csv', content).json()['errores'][0]['campo'] == 'recurso'
+
+
+def test_consumos_reuploading_the_same_file_warns_about_duplicates(client, seeded, smtp):
+    login(client, 'ana', 'Personal123')
+    row = OWN_HEADER + 'Proyecto ejemplo,Analista,2026-09-02,2026-09-02,3,diseño\n'
+    first = upload(client, 'consumos', 'c.csv', row).json()  # equals the seeded consumption
+    assert (first['validas'], first['errores_total'], len(first['advertencias'])) == (1, 0, 1)
+    twice = (
+        row
+        + 'Proyecto ejemplo,Analista,2026-10-05,2026-10-05,1,Nuevo\n'
+        + 'Proyecto ejemplo,Analista,2026-10-05,2026-10-05,1,nuevo\n'
+    )
+    again = upload(client, 'consumos', 'c.csv', twice).json()
+    assert len(again['advertencias']) == 2  # seeded duplicate + repeated row inside the file
+    assert again['advertencias'][0]['fila'] == 2 and again['validas'] == 3
+
+
+def test_consumos_twelve_hours_per_day_rule_and_unknown_role(client, seeded, smtp):
+    login(client, 'ana', 'Personal123')
+    content = (
+        OWN_HEADER
+        + 'Proyecto ejemplo,Analista,2026-10-01,2026-10-01,13,Mucho\n'
+        + 'Proyecto ejemplo,Inexistente,2026-10-01,2026-10-01,2,Rol\n'
+    )
+    body = upload(client, 'consumos', 'c.csv', content).json()
+    assert 'no pueden superar 12' in body['errores'][0]['mensaje']
+    assert body['errores'][1]['campo'] == 'rol'
+
+
+def test_consumos_row_with_several_problems_reports_all_on_the_same_row(client, seeded, smtp):
+    login(client, 'ana', 'Personal123')
+    content = OWN_HEADER + 'Proyecto ejemplo,Inexistente,2026-10-01,2026-10-01,13,Mucho\n'
+    body = upload(client, 'consumos', 'c.csv', content).json()
+    assert body['errores_total'] == 2
+    assert {e['fila'] for e in body['errores']} == {2}
+    assert 'rol' in {e['campo'] for e in body['errores']}
+    assert any('no pueden superar 12' in e['mensaje'] for e in body['errores'])
+
+
+def test_consumos_non_admin_confirm_with_a_row_error_changes_nothing(client, seeded, smtp):
+    login(client, 'ana', 'Personal123')
+    content = (
+        OWN_HEADER
+        + 'Proyecto ejemplo,Analista,2026-10-01,2026-10-01,2,Uno\n'
+        + 'Proyecto ejemplo,Inexistente,2026-10-01,2026-10-01,2,Rol\n'
+    )
+    body = upload(client, 'consumos', 'c.csv', content, confirmar=True).json()
+    assert (body['creadas'], body['confirmada'], body['errores_total']) == (0, False, 1)
+    assert scalar(seeded, 'SELECT count(*) FROM consumo') == 1
+    smtp.assert_not_called()

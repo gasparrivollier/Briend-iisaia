@@ -44,3 +44,10 @@ def send_email(settings: Settings, recipients: list[str], subject: str, body: st
         # Do not log credentials or turn a successfully saved consumption into an API error.
         logger.error('%s: no se pudo enviar la notificación SMTP.', context)
         return False
+
+
+def exceeded_hours_message(name: str, required: float, applied: float) -> tuple[str, str]:
+    """Subject and body of the 'horas excedidas' alert (single consumption and bulk load)."""
+    subject = f'URGENTE horas aplicadas excedidas {name}'
+    body = f'Proyecto: {name}\nHoras requeridas: {required:g}\nHoras aplicadas: {applied:g}\n'
+    return subject, body
