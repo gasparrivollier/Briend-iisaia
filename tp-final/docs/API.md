@@ -37,6 +37,9 @@ El esquema OpenAPI completo, fuente del cliente tipado del frontend, se sirve en
 | GET | `/api/roles`, `/api/roles/<id>` | Lista o rol; solo administrador |
 | POST / PUT / DELETE | `/api/roles`, `/api/roles/<id>` | Crear (201), actualizar (200), eliminar (204); solo administrador |
 
+| POST | `/api/carga-masiva/<entidad>` | Carga masiva multipart (vista previa o `confirmar=true`); ver "Carga masiva" |
+| GET | `/api/carga-masiva/<entidad>/plantilla.csv` | Plantilla CSV de la entidad |
+
 POST usa la colección; PUT y DELETE usan un ID. PUT recibe todos los campos editables; no es una actualización parcial.
 
 ## Cuerpos de escritura
@@ -91,6 +94,46 @@ Cada proyecto tiene tareas planificadas que el frontend muestra como diagrama de
 - `distribucion`: horas y porcentaje por recurso, por rol y por actividad (top 8 por el texto de `consumo.tarea` + "Otras").
 
 Las horas de cada consumo se reparten en partes iguales entre sus fechas (ambas incluidas), la misma regla del gráfico de horas acumuladas. No hay horas por tarea del Gantt (el vínculo consumo↔tarea se descartó). Los umbrales del semáforo son constantes de `backend/pulso/reports.py`.
+
+## Carga masiva
+
+Carga de registros desde un archivo, siempre en dos pasos: vista previa y confirmación. No guarda nada entre ambos pasos: para confirmar se vuelve a subir el mismo archivo con `confirmar=true`.
+
+- `POST /api/carga-masiva/<entidad>?confirmar=false|true`: `multipart/form-data` con el campo `archivo`. `<entidad>` es `roles`, `recursos`, `proyectos`, `tareas` o `consumos` (otro valor → 404). Es la **única excepción** a "toda mutación es JSON": no exige `Content-Type: application/json` ni cuerpo objeto, pero sigue exigiendo sesión (401), cambio de contraseña resuelto (403) y CSRF (`X-CSRF-Token`).
+- `GET /api/carga-masiva/<entidad>/plantilla.csv`: plantilla CSV (UTF-8 con BOM) con los encabezados y una fila de ejemplo.
+
+Formatos: `.csv`, `.txt` (delimitador detectado entre `,` `;` tabulación y `|`; UTF-8 o cp1252) y `.xlsx` (solo la primera hoja). La primera fila no vacía son los encabezados, que no distinguen mayúsculas, tildes ni espacios; se admiten alias (por ejemplo `nombre`, `inicio`, `fin`, `horas`, `estado`). Las columnas desconocidas se ignoran con una advertencia. Fechas ISO `YYYY-MM-DD`, `dd/mm/aaaa` o fechas de Excel; números con coma o punto decimal; booleanos `sí/no`, `true/false`, `verdadero/falso`, `1/0`.
+
+Límites: 5 MiB por archivo (413 `http_413`) y 200 filas para `recursos`, 5000 para el resto (400 `archivo_demasiado_grande`). La respuesta informa como máximo 500 errores y 500 advertencias (`errores_total` es el total real).
+
+Respuesta (`CargaResultado`, 200): `entidad`, `total` (filas leídas), `validas`, `errores_total`, `errores` y `advertencias` (listas de `{fila, campo, mensaje}`, `fila` es el número de línea del archivo), `creadas` y `confirmada`.
+
+- Sin `confirmar` (vista previa) no se escribe nada.
+- Con `confirmar=true` la carga es todo o nada: si hay algún error no se crea ninguna fila y la respuesta es **200 con `confirmada: false`** (no un 4xx); si no hay errores se crean todas en una transacción y `confirmada` es `true`.
+
+Errores de archivo (400): `formato_no_soportado`, `archivo_invalido` (vacío, sin filas, xlsx corrupto, columnas repetidas, falta el campo `archivo`) y `columnas_faltantes`. Los permisos de la entidad se verifican antes de leer el archivo (403 antes que 400).
+
+Permisos: `roles`, `recursos` y `proyectos` solo administrador. `tareas`: administrador o responsable del proyecto de cada fila (se comprueba fila por fila). `consumos`: cualquier usuario, solo consumos propios (el administrador puede indicar otro recurso).
+
+Columnas por entidad (obligatorias en negrita; «a | b» significa que alcanza con una):
+
+| Entidad | Columnas |
+|---|---|
+| `roles` | **`rol_descripcion`** |
+| `recursos` | **`recurso_nombre`**, **`password`** (mínimo 8), `email`, `es_admin`; los usuarios creados deben cambiar la contraseña al ingresar |
+| `proyectos` | **`proyecto_nombre`**, **`fecha_inicio`**, **`fecha_fin`**, **`horas_requeridas`**, **`owner` \| `owner_id`**, **`proyect_status`**, `porcentaje_avance` |
+| `tareas` | **`proyecto` \| `proyecto_id`**, **`tarea_nombre`**, **`fecha_inicio`**, **`fecha_fin`**, `porcentaje_avance`, `recurso` \| `recurso_id` |
+| `consumos` | **`proyecto` \| `proyecto_id`**, **`rol` \| `rol_id`**, **`fecha_inicio`**, **`fecha_fin`**, **`horas_consumidas`**, **`tarea`**, `recurso` \| `recurso_id` (obligatorio para administradores) |
+
+Resolución por nombre: `owner`, `recurso`, `proyecto` y `rol` se buscan por nombre sin distinguir mayúsculas; los `*_id` por ID. Si vienen ambos, deben coincidir. Un nombre inexistente o un proyecto con nombre repetido (ambiguo) es un error de esa fila: se debe usar `proyecto_id`. Las reglas de validación son las de los endpoints individuales (fechas dentro del proyecto para tareas, 12 h por día para consumos, etc.).
+
+Efectos: al confirmar `consumos` se envía un correo resumen por proyecto (al responsable y a los recursos con email) y, si el proyecto supera sus horas requeridas con esa carga, la alerta de horas excedidas al responsable. Los correos se envían en segundo plano.
+
+Límites conocidos:
+
+- En desarrollo o contra uvicorn directo, una subida multipart en chunks sin `Content-Length` la acumula Starlette antes de autenticar y el tope de tamaño se aplica después; en producción lo evita Caddy (`max_size 6MB` en `/api/carga-masiva/*`).
+- Los consumos idénticos a uno existente solo generan una advertencia; se cargan igual.
+- Los datos que sigan a más de 10 000 filas vacías consecutivas en una hoja se ignoran.
 
 ## Email de recursos
 

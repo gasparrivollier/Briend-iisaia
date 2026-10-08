@@ -22,7 +22,7 @@ Las tareas deben quedar dentro de las fechas de su proyecto, y el rango de un pr
 
 Todos los usuarios autenticados consultan proyectos y consumos; los usuarios comunes crean, editan y eliminan consumos propios. El responsable edita su proyecto salvo la asignación del responsable, y planifica sus tareas (crear, editar, reprogramar y eliminar). El administrador administra todo, incluidos recursos y roles, creación/eliminación de proyectos y reasignaciones. Debe quedar al menos un administrador. Se verifican permisos en el servidor.
 
-La inicialización de una base vacía crea admin / Proyecto1 y exige cambiar esa contraseña. Nuevos usuarios y contraseñas restablecidas también requieren cambio. La inicialización no sobrescribe cuentas. Contraseñas con hash argon2id y mínimo de 8 caracteres para las nuevas. Los hashes scrypt de la versión anterior se aceptan y se actualizan en el siguiente ingreso. Cambiar o restablecer una contraseña cierra las otras sesiones de la cuenta. Todas las mutaciones requieren JSON y CSRF: POST para altas, PUT para actualizaciones y DELETE para bajas. Todavía no hay recuperación por correo. El envío de alertas por correo está previsto para una etapa posterior (Fase 5).
+La inicialización de una base vacía crea admin / Proyecto1 y exige cambiar esa contraseña. Nuevos usuarios y contraseñas restablecidas también requieren cambio. La inicialización no sobrescribe cuentas. Contraseñas con hash argon2id y mínimo de 8 caracteres para las nuevas. Los hashes scrypt de la versión anterior se aceptan y se actualizan en el siguiente ingreso. Cambiar o restablecer una contraseña cierra las otras sesiones de la cuenta. Todas las mutaciones requieren JSON y CSRF, salvo la carga masiva de archivos, que usa `multipart/form-data` pero también exige sesión y CSRF: POST para altas, PUT para actualizaciones y DELETE para bajas. Todavía no hay recuperación por correo. El envío de alertas por correo está previsto para una etapa posterior (Fase 5).
 
 ## Interfaz y aceptación
 
@@ -36,9 +36,12 @@ El frontend compilado consume exclusivamente la API JSON, mediante un cliente ti
 
 Caddy sirve el frontend, obtiene el certificado HTTPS y reenvía `/api` a la API. PostgreSQL persiste los datos, con un backup diario. Todo se levanta con Docker Compose (`compose.prod.yaml`). Los secretos (la contraseña de la base) se leen de variables de entorno y no se guardan en Git.
 
-## Próximas funcionalidades (Fase 5, pendiente)
+## Carga masiva
 
-- Cargas masivas por CSV, con vista previa de errores por fila.
+Pantalla `/carga-masiva` para cargar roles, recursos, proyectos, tareas y consumos desde un archivo `.csv`, `.txt` o `.xlsx`. Primero se muestra una vista previa con los errores por fila (número de línea, campo y mensaje) y las advertencias; solo si no hay errores se habilita la confirmación, que crea todas las filas o ninguna. Los proyectos, recursos y roles pueden referenciarse por nombre o por ID, y cada entidad ofrece una plantilla CSV. Permisos: roles, recursos y proyectos solo el administrador; tareas el administrador o el responsable del proyecto; consumos cualquier usuario, solo propios. Al cargar consumos se envía un correo resumen por proyecto y, si corresponde, la alerta de horas excedidas. Es la única operación de escritura que no usa JSON (subida `multipart/form-data`). Ver `docs/API.md`.
+
+## Próximas funcionalidades (Fase 5)
+
 - Alertas por correo: presupuesto excedido, proyecto vencido y días sin carga de horas.
 
 El reporting ya está implementado como dashboard por proyecto (`/proyectos/<id>/dashboard`): salud y desvíos (tiempo vs. horas vs. avance, con índices de eficiencia y de cronograma), horas por semana o mes apiladas por rol o recurso, ritmo y proyección de la fecha de fin, ejecución real vs. plan, salud de las tareas y distribución de horas. Ver `docs/API.md`.
