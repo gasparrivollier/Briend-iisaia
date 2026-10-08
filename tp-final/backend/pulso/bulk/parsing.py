@@ -64,7 +64,7 @@ def xlsx_rows(content: bytes) -> Iterator[tuple[int, list[Any]]]:
     except Exception:  # openpyxl raises many types for broken workbooks
         raise invalid('El archivo .xlsx no es válido.') from None
     try:
-        rows = iter(sheet.iter_rows(max_col=MAX_COLUMNS + 1, values_only=True))
+        rows = iter(sheet.iter_rows(values_only=True))
         number = 0
         while True:
             try:
