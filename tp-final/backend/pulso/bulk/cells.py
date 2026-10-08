@@ -60,6 +60,8 @@ def to_number(value: Any) -> Any:
             text = text.replace(',', '')
     elif ',' in text:
         text = text.replace(',', '.')
+    elif re.fullmatch(r'[1-9]\d{0,2}(\.\d{3})+', text):  # 1.200 / 1.200.000: dots as thousands
+        text = text.replace('.', '')
     return text
 
 
