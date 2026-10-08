@@ -1,6 +1,6 @@
 Herramienta de project management
 
-- Gestion de proyecto: Crear, editar, borrar proyectos. En progreso. 
+- Gestion de proyecto: Crear, editar, borrar proyectos. Done. 
 - Carga de horas: Done.
 - Carga de recursos: Done.
 - Carga de roles: Done.

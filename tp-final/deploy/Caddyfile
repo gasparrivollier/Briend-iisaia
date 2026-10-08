@@ -10,6 +10,15 @@
 		-Server
 	}
 
+	# Bulk uploads (xlsx/csv) may exceed the 1MB JSON limit; the API enforces the exact file size.
+	@upload path /api/carga-masiva/*
+	handle @upload {
+		request_body {
+			max_size 6MB
+		}
+		reverse_proxy api:5000
+	}
+
 	handle /api/* {
 		request_body {
 			max_size 1MB

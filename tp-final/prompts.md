@@ -487,3 +487,60 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 - **Pruebas:** un test de `projectedEndDate` tenía mal calculada mi expectativa (10/10, no 11/10) y se corrigió. Vitest 48/48; `npm run build` ok. E2E: el flujo "plain user logs hours" ya fallaba antes de este cambio por el tope de 12 h/día del commit `a7a4025` (25,5 h en 2 días); se ajustó a 24 h (`-4 / 4`) y se agregó la visita al dashboard → 6/6. Se tomó una captura temporal (no queda en el repo) para revisar el aspecto.
 - **Documentación:** `docs/API.md`, `docs/ESPECIFICACION.md`, `docs/PLAN.md`, `docs/VALIDACION.md`, `README.md`, `FEATURE_PLAN.md`, `CLAUDE.md`.
 - No se hizo commit. No verificado: build de producción tras Caddy (CSP) ni vista móvil del dashboard.
+
+## Prompt: "are superpowers enabled?"
+
+**Acciones realizadas:** sólo respuesta (rama `feat-batch-uploads`, sesión en modo plan). Se confirmó que el hook de inicio cargó el skill `using-superpowers` y se listaron los skills `superpowers:*` disponibles. Se avisó que, por estar en modo plan, no se podía registrar el prompt en este archivo; se registra ahora, al salir del modo plan.
+
+## Prompt: "Alright. Let's plan a batch upload feature. Let's start mapping all dictionaries and tables and having a feature that allows .csv, .xlsx or .txt files for uploading massive data."
+
+**Acciones realizadas (modo plan, sólo lectura + archivo de plan):**
+- Se invocó el skill `superpowers:brainstorming` y se clasificó el pedido como **arquitectónico** (subsistema nuevo: parseo de archivos, validación y escritura masiva en varias tablas).
+- Se lanzó un agente Explore (sólo lectura) sobre `tp-final/` para mapear tablas, validadores, routers, CLI, docs, frontend y tests. Hallazgos principales: tablas `recurso`, `rol`, `proyecto`, `consumo`, `tarea` (más `revision_diaria` y `sesion` internas); el único diccionario fijo es `STATUSES`; sólo `recurso_nombre` y `rol_descripcion` son únicos (nombres de proyecto y tarea no); `guard()` exige JSON en toda mutación; límite de 1 MiB en la app y en Caddy; faltan `python-multipart` y `openpyxl`; cada consumo dispara emails (en lote serían N); no existía código de import/export salvo `cli.import-sqlite`.
+- Preguntas y respuestas:
+  - Alcance: primero se respondió "Consumos + Tareas"; el usuario interrumpió ("Sorry. Ask again"), se repitió la pregunta y la respuesta final fue **los 5 entidades** (Recursos, Roles, Proyectos, Tareas, Consumos).
+  - Errores: **vista previa y luego confirmar**.
+  - Referencias entre registros: **por nombre, con id como alternativa**.
+  - Estructura del archivo: **una entidad por carga**.
+  - Enfoque: **sin estado, se reenvía el archivo al confirmar** (sin tabla nueva). Valores por defecto aceptados: matriz de permisos actual, sin emails por fila, contraseña en el archivo para Recursos, confirmación todo-o-nada.
+- Se escribió el plan en `/home/gaspi/.claude/plans/are-superpowers-enabled-eventual-bengio.md` (mapa de columnas por entidad, parseo, servicio y endpoint `POST /api/carga-masiva/{entidad}?confirmar=`, guard multipart, límites de tamaño, frontend, pruebas) y el usuario lo **aprobó** con ExitPlanMode.
+- No se escribió código de producto todavía. Nota: el skill de brainstorming pide además un spec escrito en `docs/superpowers/specs/` y el paso `writing-plans`; el plan aprobado en modo plan cumple el rol de spec.
+- Al salir del modo plan se registraron en este archivo los dos prompts de la sesión y se invocó `superpowers:writing-plans`.
+- Se leyeron (sólo lectura) `sessions.py`, `routers/{consumptions,tasks,resources,projects}.py`, `schemas.py`, `main.py`, `queries.py`, `errors.py`, `mail.py`, `security.py`, `config.py`, `db.py`, `tests/conftest.py`, `tests/test_consumption_mail.py`, `pyproject.toml`, `frontend/src/{router.ts,api/client.ts}`, `components/{AppHeader,FormShell,PageHeading,SelectField}.vue`, `views/RoleFormView.vue`, `composables/{submit,notice}.ts`, `tests/unit/client.spec.ts` y `e2e/flows.spec.ts` para escribir código exacto en el plan.
+- Se creó `docs/superpowers/plans/2026-10-07-carga-masiva.md` (9 tareas: dependencias y mensajes compartidos, parseo de archivos, framework + endpoint + Roles, Recursos, Proyectos, Tareas, Consumos, frontend, e2e + documentación) y se copió el spec aprobado a `docs/superpowers/specs/2026-10-07-carga-masiva-design.md`. Desvío documentado respecto del spec: la confirmación con errores responde 200 con `confirmada: false` (el cliente descarta el cuerpo de las respuestas no 2xx). Pendiente: que el usuario revise el plan y elija el método de ejecución. No se ejecutó código ni se hizo commit.
+
+## Prompt: "Implement by subagent-driven. Also add commits while working on project and performing the tests"
+
+**Acciones realizadas:**
+- El usuario eligió ejecución **subagent-driven** del plan `docs/superpowers/plans/2026-10-07-carga-masiva.md` y **autorizó commits** durante el trabajo (un commit por tarea, tras correr sus tests), en la rama `feat-batch-uploads`.
+- Se invoca `superpowers:subagent-driven-development` (se actualiza esta entrada a medida que avanza).
+- Preparación: commit del spec y del plan (`bc87a29`); el espacio de trabajo del ledger vive en `.superpowers/sdd/2026-10-07-carga-masiva/` (excluido vía `.git/info/exclude`); se hizo un escaneo previo de conflictos del plan (dos rulings menores: imports sin usar / a mitad de archivo en los tests del plan se corrigen para cumplir ruff; un commit por tarea).
+- Ejecución (un implementador nuevo por tarea y un revisor por tarea; modelos: haiku para transcripción simple, sonnet para integración, opus para revisar guard/emails/final):
+  - **Tarea 1** `f1591c1`: dependencias `python-multipart`/`openpyxl`, `Settings.max_upload_bytes`, `pulso/validation.py`. Revisión limpia.
+  - **Tarea 2** `87ceeb8` + `8e66d6b`: `bulk/cells.py` y `bulk/parsing.py`. La revisión halló 3 problemas Importantes (hoja xlsx corrupta → 500; filas vacías con estilo rechazadas como "demasiado grande"; comilla sin cerrar tragaba el archivo); se corrigieron en una ronda de arreglos y el re-review los dio por resueltos.
+  - **Tarea 3** `d94ec7a`: framework (`bulk/base.py`, `service.py`, `routers/bulk.py`), guard multipart, límites por ruta, Caddyfile, tipos OpenAPI regenerados, Roles de punta a punta. Revisión limpia (opus).
+  - **Tarea 4** `ba77ced` (Recursos), **Tarea 5** `b202427` (Proyectos), **Tarea 6** `6d9e422` (Tareas): revisiones limpias.
+  - **Tarea 7** `d3a6189` (Consumos): duplicados como advertencia, un email resumen por proyecto y una alerta de horas excedidas por proyecto, helper `exceeded_hours_message` extraído de `consumptions.py` sin cambiar comportamiento. Revisión limpia (opus).
+  - **Tarea 8** `e2ae21e`: `bulk.ts`, `BulkResult.vue`, `BulkUploadView.vue`, ruta y enlace. Desvío aceptado: el test unitario del cliente reemplaza `FormData` por el de Node (el de jsdom no se puede convertir en cuerpo de `Request`); el cuerpo multipart real lo verifica el e2e.
+  - **Tarea 9** `ef8168e` (e2e) + `4056f74` (docs): e2e 7/7 pasa (el multipart real llega al backend sin cambios en `client.ts`); documentación en `API.md`, `ESPECIFICACION.md`, `README.md`, `PLAN.md`, `VALIDACION.md`. El `CLAUDE.md` de la raíz está en `.gitignore`: se editó en disco pero no entra en commits.
+- Verificación al final de la tarea 9: backend `pytest` 196 passed, `ruff` limpio; frontend `npm test` 51 passed, `gen:api` sin diferencias, `npm run build` ok.
+- Pendiente: revisión final de toda la rama, corrida manual en el stack de desarrollo (documentada en `VALIDACION.md` como pendiente del usuario) y `caddy adapt` del Caddyfile al desplegar.
+- **Revisión final de toda la rama** (opus): "con arreglos". Hallazgos: C1 DoS por dimensión declarada de un xlsx sparse (234 s con un archivo de 5 KB), C2 chequeo de encabezados duplicados cuadrático, C3 sin tope de tamaño descomprimido del xlsx, C4 la documentación prometía que nombre e id debían coincidir pero el código no lo comprobaba; I1 `1.200` se leía como 1,2; I2 sin mensaje claro ante 413 de Caddy; I3 re-subir un archivo duplicaba proyectos y tareas sin avisar; I4 imprecisiones de documentación; más menores (NUL, select deshabilitado mientras se envía, limpiar el input de archivo, `aria-live`).
+- **Ronda final de arreglos** (`2174fa4`, `ebdadfd`, `8e5624c`, `a064577`, `fc40640`, `e1bb836`, `1d70be5`). Decisiones: C4 se arregla en el código (si vienen nombre e id y no coinciden → error de fila); I3 como advertencia, no error. El re-review verificó todo salvo dos Críticos nuevos: `1d70be5` había quitado `max_col` (filas xlsx anchas vacías, 40 s con 148 KB) y el recorte de comas finales del encabezado CSV era cuadrático (19 s con 200 KB).
+- **Arreglo de seguimiento** `4ee811e` (decisión del controlador, fuera del proceso estándar que no prevé una segunda ronda final, porque ambos fallos eran explotables por cualquier usuario autenticado): `iter_rows(max_col=MAX_COLUMNS + 1)` + descarte rápido de filas vacías y recorte inverso único del encabezado, con 3 tests con cota de tiempo. Re-review: todo resuelto, listo para integrar. Límite conocido (menor): texto de encabezado más allá de la columna 101 tras un hueco se ignora en xlsx.
+- Estado final de la rama `feat-batch-uploads` (21 commits sobre `main`, sin push): backend `pytest` 217 passed y `ruff` limpio; frontend `npm test` 53 passed, `vue-tsc` y `build` ok; e2e Playwright 7/7 (incluye el flujo de carga masiva con multipart real).
+- Pendiente para el usuario: corrida manual en el stack de desarrollo (csv/xlsx/txt por entidad, en orden de dependencias, y el email resumen en Mailpit), `caddy adapt` del Caddyfile al desplegar, y decidir cómo integrar la rama (PR/merge). No se hizo push.
+
+## Prompt: "create a sample file with each extension to upload"
+
+**Acciones realizadas:**
+- Se eligió una cadena coherente de tres archivos de ejemplo, uno por extensión, que se pueden cargar en orden de dependencias sobre una base de desarrollo: `roles.csv` (Roles), `recursos.txt` (Recursos, separado por tabuladores) y `proyectos.xlsx` (Proyectos, con los responsables creados por el archivo anterior). Se guardan en `docs/ejemplos-carga-masiva/`.
+
+## Prompt: "generate those files too"
+
+**Acciones realizadas:**
+- Se generaron los archivos de ejemplo que faltaban en `docs/ejemplos-carga-masiva/`: `tareas.csv` (separado por `;` y fechas `DD/MM/AAAA`, estilo Excel en español) y `consumos.xlsx` (fechas reales de Excel), consistentes con los proyectos, usuarios y roles de los tres archivos anteriores. Se verificó la cadena completa de cinco archivos con una prueba temporal contra la API sobre una base temporal (la prueba se borró) y se actualizó el README de la carpeta.
+
+## Prompt: "como era la contraseña para iniciar sesion?"
+
+**Acciones realizadas:** sólo respuesta, sin cambios de código: usuario `admin` y contraseña inicial `Proyecto1` (la que crea `init-db` en una base vacía, y que el sistema obliga a cambiar en el primer ingreso); los usuarios del archivo de ejemplo `recursos.txt` usan `Cambiar1234`, también con cambio obligatorio al ingresar.

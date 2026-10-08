@@ -4,6 +4,7 @@ Requires a reachable Postgres (dev: `podman compose up -d db` from tp-final/). O
 server with TEST_DATABASE_URL (a URL whose user can CREATE/DROP DATABASE).
 """
 
+import io
 import os
 import uuid
 
@@ -11,6 +12,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
+from openpyxl import Workbook
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -138,4 +140,26 @@ def consumption_data():
         horas_consumidas='12',
         tarea='Implementación',
         rol_id='1',
+    )
+
+
+def xlsx_bytes(rows):
+    workbook = Workbook()
+    sheet = workbook.active
+    for row in rows:
+        sheet.append(row)
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def upload(client, entidad, filename, content, confirmar=False):
+    token = client.get('/api/session').json()['csrf_token']
+    if isinstance(content, str):
+        content = content.encode()
+    return client.post(
+        f'/api/carga-masiva/{entidad}',
+        params={'confirmar': 'true' if confirmar else 'false'},
+        files={'archivo': (filename, content, 'application/octet-stream')},
+        headers={'X-CSRF-Token': token},
     )

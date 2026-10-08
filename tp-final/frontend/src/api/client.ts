@@ -1,6 +1,7 @@
 // Typed HTTP client generated from the FastAPI OpenAPI schema (`npm run gen:api`).
 // The frontend only knows the HTTP contract; it never talks to the database.
 import createClient from 'openapi-fetch'
+import { MAX_UPLOAD_MESSAGE } from '@/bulk'
 import type { components, paths } from './schema'
 
 export type Schemas = components['schemas']
@@ -55,6 +56,7 @@ export async function call<T>(pending: Promise<Result<T>>): Promise<T> {
   const { data, error, response } = result
   if (!response.ok) {
     const body = error as ErrorBody | undefined
+    if (response.status === 413 && !body?.error) throw new APIError(MAX_UPLOAD_MESSAGE, 413, 'http_413') // proxy answer, not JSON
     throw new APIError(
       body?.error?.message ?? 'No se pudo completar la solicitud.',
       response.status,
@@ -124,4 +126,17 @@ export const api = {
       : call(http.POST('/api/roles', { body })),
   deleteRole: (identifier: number) =>
     call(http.DELETE('/api/roles/{identifier}', { ...id(identifier), body: {} as never })),
+
+  bulkUpload: (entity: string, file: File, confirm: boolean) => {
+    const form = new FormData()
+    form.append('archivo', file)
+    return call(
+      http.POST('/api/carga-masiva/{entidad}', {
+        params: { path: { entidad: entity }, query: { confirmar: confirm } },
+        body: {} as never, // the real body is the FormData below; the browser sets the multipart boundary
+        bodySerializer: () => form,
+      }),
+    )
+  },
+  bulkTemplateUrl: (entity: string) => `/api/carga-masiva/${entity}/plantilla.csv`,
 }

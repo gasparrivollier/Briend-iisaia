@@ -132,3 +132,17 @@ La versión inicial Flask/Jinja tuvo 49 pruebas aprobadas; esa suite fue adaptad
 - **Revisión visual:** captura del dashboard con datos reales del E2E (escritorio).
 - **No verificado:** el build de producción detrás de Caddy (CSP). Chart.js dibuja en `<canvas>` y no inyecta hojas de estilo, por lo que no debería requerir cambios en `deploy/Caddyfile`; conviene confirmarlo sin errores de CSP en consola al desplegar. La vista móvil del dashboard no se probó.
 - Los umbrales del semáforo (≥ 1, ≥ 0,85) son valores propuestos y están pendientes de confirmación del usuario.
+
+## Carga masiva (2026-10-07)
+
+- **Backend:** 215 pruebas aprobadas (suite completa, incluye las de carga masiva: parseo de csv/txt/xlsx, los cinco cargadores, permisos, CSRF, límites de tamaño y filas, plantillas, correos de resumen y alerta). Ruff check y format sin observaciones.
+- **Frontend:** 53 pruebas de Vitest aprobadas; `vue-tsc` + build de Vite correctos; `npm run gen:api` no produce diferencias (`git status` limpio).
+- **E2E:** 7/7 (6 flujos de escritorio + 1 móvil). El flujo nuevo sube un CSV real por `multipart/form-data` como administrador: con un rol ya existente la vista previa muestra "Ya existe un rol con esa descripción." y no ofrece confirmar; con un archivo corregido confirma "Se cargaron 2 registros de roles." y el rol "Soporte" aparece en Roles. Es la prueba de que el cliente envía el cuerpo multipart (con su boundary) y la API lo recibe; no hizo falta tocar `src/api/client.ts`.
+- **Pendiente de ejecutar por el usuario (no realizado):** prueba manual con el stack de desarrollo levantado: subir un `.csv`, un `.xlsx` y un `.txt` en el orden Roles → Recursos → Proyectos → Tareas → Consumos, confirmar cada uno, comprobar las filas creadas y el correo resumen en Mailpit (`http://127.0.0.1:8025`).
+- **No verificado:** el bloque `@upload` de `deploy/Caddyfile` no se validó con un binario de Caddy (`caddy adapt --config deploy/Caddyfile`), ni el límite de 6 MB detrás del proxy.
+
+### Correcciones de la revisión final (carga masiva)
+
+- Parseo endurecido: dimensión declarada de la hoja ignorada (`reset_dimensions`), tope de 100 columnas, conteo de encabezados repetidos lineal, 50 MiB descomprimidos y rechazo de caracteres nulos. Una hoja de 4,8 KB que declaraba A1:XFD1048576 tardaba 234 s y ahora milisegundos; un encabezado de 40 000 columnas se rechaza al instante.
+- Nombre e id deben coincidir cuando vienen ambos; separador de miles con punto; advertencias por proyectos y tareas repetidos; mensaje amable para el 413 de Caddy en el frontend.
+- Backend: 215 pruebas aprobadas; Vitest: 53 pruebas; E2E: 7/7; Ruff, `vue-tsc` y build correctos.

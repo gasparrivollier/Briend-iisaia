@@ -48,7 +48,7 @@ La versión anterior se diseñó como una aplicación local. El nuevo objetivo e
 2. **Paridad del backend:** el mismo contrato de API.md, la suite Flask portada, `init-db` e `import-sqlite`. ✔
 3. **Paridad del frontend:** las mismas pantallas y reglas en Vue, con pruebas Vitest y Playwright. ✔
 4. **Despliegue:** Caddy, `compose.prod.yaml` y backups; se retira la versión Flask. ✔
-5. **Funcionalidades:** reporting → CSV → Gantt → alertas (worker + SMTP). Gantt ✔ (2026-09-30, tareas por proyecto; ver el plan de planificación más abajo). El resto queda **pendiente para una fecha futura**.
+5. **Funcionalidades:** reporting → CSV → Gantt → alertas (worker + SMTP). Gantt ✔ (2026-09-30, tareas por proyecto; ver el plan de planificación más abajo), reporting ✔ y carga masiva ✔ (2026-10-07; ver al final).
 6. **Documentación:** README, API, especificación, este plan y la validación. ✔
 
 ## Compatibilidad
@@ -152,3 +152,23 @@ Decisiones del usuario: pantalla nueva `/proyectos/:id/dashboard` enlazada desde
 - La fecha de fin proyectada se calcula en el frontend con la misma regresión lineal del gráfico (`projectedEndDate`); en la pantalla cada ritmo muestra su origen (ventana de 28 días vs. regresión sobre toda la historia).
 - Límites: no hay horas por tarea del Gantt ni desvíos por dependencias (ambos descartados).
 - Pendiente de confirmar con el usuario: los umbrales del semáforo (≥ 1 en orden, ≥ 0,85 atención).
+
+## Carga masiva (2026-10-07) ✔
+
+Rama `feat-batch-uploads`. Cinco cargadores (roles, recursos, proyectos, tareas, consumos) en `backend/pulso/bulk/` (`parsing.py`, `cells.py`, `base.py`, `service.py`, `entities.py`), endpoint en `routers/bulk.py` y pantalla `/carga-masiva` (`views/BulkUploadView.vue`, `components/BulkResult.vue`, `src/bulk.ts`). Dependencias nuevas: `python-multipart` y `openpyxl`. Diseño en `docs/superpowers/specs/2026-10-07-carga-masiva-design.md`.
+
+- Sin estado: la vista previa no guarda nada y la confirmación vuelve a subir el archivo; todo o nada en una transacción. Para tareas y consumos se bloquean los proyectos con el mismo orden de bloqueo que los endpoints individuales.
+- `guard(json_body=False)` omite la exigencia de JSON (415 y cuerpo objeto) pero mantiene sesión y CSRF; el tamaño máximo (5 MiB) se aplica por ruta, y `deploy/Caddyfile` permite hasta 6 MB en `/api/carga-masiva/*`.
+- Desvío respecto del diseño inicial: confirmar con errores devuelve 200 con `confirmada: false` en lugar de un 4xx.
+
+Límites conocidos (de las revisiones):
+
+- En desarrollo o contra uvicorn directo, una subida multipart en chunks sin `Content-Length` la acumula Starlette antes de autenticar y el tope de tamaño se aplica después; producción está protegida por `max_size 6MB` de Caddy.
+- El bloque `@upload` nuevo del `Caddyfile` no se validó con el binario de Caddy: al desplegar ejecutar `caddy adapt --config deploy/Caddyfile` (o `caddy validate`).
+- Los datos posteriores a más de 10 000 filas vacías consecutivas en una hoja se ignoran.
+- Los consumos idénticos a uno existente solo generan advertencia.
+- Confirmar con errores pendientes responde 200 con `confirmada: false`.
+- Volver a subir un archivo duplica proyectos y tareas; solo se advierte (los nombres no son únicos).
+
+Revisión final: se endurecieron los límites del parseo (dimensión declarada, 100 columnas, 50 MiB descomprimidos, caracteres nulos), nombre e id deben coincidir, los puntos de miles se interpretan, y se agregaron las advertencias de repetidos y el mensaje del 413. Ver `docs/VALIDACION.md`.
+

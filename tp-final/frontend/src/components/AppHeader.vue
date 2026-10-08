@@ -27,6 +27,7 @@ async function logout() {
     <template v-if="session.user">
       <nav aria-label="Navegación principal">
         <RouterLink to="/proyectos">Proyectos</RouterLink>
+        <RouterLink to="/carga-masiva">Carga masiva</RouterLink>
         <template v-if="session.user.es_admin">
           <RouterLink to="/recursos">Recursos</RouterLink>
           <RouterLink to="/roles">Roles</RouterLink>

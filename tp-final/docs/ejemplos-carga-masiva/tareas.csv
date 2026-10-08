@@ -1,0 +1,7 @@
+proyecto;tarea_nombre;fecha_inicio;fecha_fin;porcentaje_avance;recurso
+Portal de clientes;Relevamiento;01/10/2026;15/10/2026;100;lucia
+Portal de clientes;Diseño de pantallas;16/10/2026;15/11/2026;40;martin
+Portal de clientes;Desarrollo;16/11/2026;15/12/2026;0;
+App móvil;Prototipo;01/11/2026;30/11/2026;20;martin
+Migración de datos;Mapeo de tablas;15/10/2026;31/10/2026;60;sofia
+Migración de datos;Pruebas de carga;01/11/2026;30/11/2026;0;sofia

@@ -13,6 +13,8 @@ dependencies = [
     "alembic>=1.13",
     "pwdlib[argon2]>=0.2",
     "werkzeug>=3.1",
+    "python-multipart>=0.0.32",
+    "openpyxl>=3.1.5",
 ]
 
 [dependency-groups]

@@ -174,6 +174,9 @@ Las sesiones viven en la base de datos; no requieren una clave de firma. Para ce
 | Planificar tareas (crear/editar/reprogramar/eliminar) | No | Del propio proyecto | Sí |
 | Crear/eliminar proyecto o reasignar responsable | No | No | Sí |
 | Gestionar usuarios, contraseñas y roles | No | No | Sí |
+| Carga masiva de roles, recursos y proyectos | No | No | Sí |
+| Carga masiva de tareas | No | Del propio proyecto (por fila) | Sí |
+| Carga masiva de consumos | Solo propios | Solo propios | Cualquier recurso |
 
 - Cada recurso es una cuenta, y su nombre único (sin distinguir mayúsculas) es el usuario.
 - El rol es la función desempeñada en cada consumo, no un permiso.
@@ -187,7 +190,7 @@ Las sesiones viven en la base de datos; no requieren una clave de firma. Para ce
 
 ```bash
 docker compose up -d db                         # las pruebas del backend crean bases temporales en este Postgres
-cd backend && uv run pytest -q                  # 101 pruebas: contrato, permisos, CSRF, validación, integridad, tareas, migraciones
+cd backend && uv run pytest -q                  # 215 pruebas: contrato, permisos, CSRF, validación, integridad, tareas, carga masiva, migraciones
 uv run ruff check . && uv run ruff format --check .
 cd ../frontend && npm test                      # Vitest: cliente HTTP, escape, permisos, navegación, mapeo del Gantt (con TZ de Buenos Aires)
 npx playwright install chromium && npm run test:e2e   # Playwright: flujos completos sobre API + base e2e aislada
@@ -205,7 +208,7 @@ El workflow de CI `.github/workflows/tp-final.yml` corre todo lo anterior y adem
 **Limitaciones y pendientes:**
 - Los booleanos de usuario ahora son `true`/`false` en lugar de `1`/`0`.
 - Un JSON mal formado devuelve 400 antes que el 401 de sesión ausente.
-- El **reporting** (dashboard por proyecto) está implementado. De la **Fase 5** quedan cargas masivas por CSV (las alertas por correo y el Gantt ya están hechos; Mailpit está disponible en desarrollo). Ver [docs/PLAN.md](docs/PLAN.md).
+- El **reporting** (dashboard por proyecto) está implementado. La **carga masiva** (CSV/XLSX/TXT con vista previa) también está implementada, con los límites de [docs/PLAN.md](docs/PLAN.md); la Fase 5 está completa (Gantt, alertas por correo, reporting y carga masiva; Mailpit está disponible en desarrollo). Ver [docs/PLAN.md](docs/PLAN.md).
 
 ## Documentación y proceso
 

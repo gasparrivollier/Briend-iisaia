@@ -31,6 +31,7 @@ export const routes = [
   { path: '/roles', name: 'roles', component: () => import('@/views/RolesView.vue'), meta: { title: 'Roles', admin: true } },
   { path: '/roles/nuevo', name: 'role-new', component: () => import('@/views/RoleFormView.vue'), meta: { title: 'Nuevo rol', admin: true } },
   { path: '/roles/:id(\\d+)/editar', name: 'role-edit', component: () => import('@/views/RoleFormView.vue'), props: withId, meta: { title: 'Editar rol', admin: true } },
+  { path: '/carga-masiva', name: 'bulk-upload', component: () => import('@/views/BulkUploadView.vue'), meta: { title: 'Carga masiva' } },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue'), meta: { title: 'Página no encontrada' } },
 ]
 

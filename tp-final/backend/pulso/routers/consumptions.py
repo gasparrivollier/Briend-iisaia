@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from sqlalchemy import func, select
 
 from ..errors import forbidden
-from ..mail import send_consumption_email, send_email
+from ..mail import exceeded_hours_message, send_consumption_email, send_email
 from ..models import Consumo, Proyecto, Recurso, Rol
 from ..queries import columns, consumption_row, consumptions_query, get_or_404, reference
 from ..schemas import ConsumoIn, ConsumoListado, ConsumoOut
@@ -59,11 +59,7 @@ def apply(
     after = db.scalar(total_query)
     owner = db.get(Recurso, project.owner_id)
     alert = before <= project.horas_requeridas < after
-    subject = f'URGENTE horas aplicadas excedidas {project.proyecto_nombre}'
-    body = (
-        f'Proyecto: {project.proyecto_nombre}\n'
-        f'Horas requeridas: {project.horas_requeridas:g}\nHoras aplicadas: {after:g}\n'
-    )
+    subject, body = exceeded_hours_message(project.proyecto_nombre, project.horas_requeridas, after)
     recipients = [owner.email] if owner.email else []
     db.commit()
     if alert:
