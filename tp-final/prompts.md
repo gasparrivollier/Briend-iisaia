@@ -593,3 +593,15 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 - Archivos creados/modificados en la rama `feat-vercel-demo` (dentro de `tp-final/`): `vercel.json` (build del frontend, `frontend/dist`, rewrites `/api/*` → función y SPA → `index.html`, cabeceras de seguridad/CSP), `api/index.py` (entrada ASGI), `requirements.txt` (espejo de las dependencias del backend), `.vercelignore`, y `backend/pulso/db.py` (`make_engine` normaliza `postgresql://` → `postgresql+psycopg://` y, con `VERCEL` definido, usa `NullPool` y `prepare_threshold=None` por el pgbouncer de Neon).
 - Verificación: `ruff check` y `ruff format --check` sin problemas; `make_engine` con `VERCEL=1` devuelve `NullPool` y driver `postgresql+psycopg`; `api/index.py` importa y expone la app FastAPI; `uv run pytest -q` → 217 passed.
 - No se ejecutó `init-db` contra Neon ni se desplegó (falta confirmación del usuario y su cuenta de Vercel). Las credenciales de Neon no se guardaron en ningún archivo.
+
+## Prompt: [captura de pantalla] "This page is unavailable — 500 FUNCTION_INVOCATION_FAILED" (id gru1::bqc86-1791427069561-4ebedfa4bc91)
+
+**Acciones realizadas:**
+- El usuario desplegó la rama `feat-vercel-demo` en Vercel y la página devuelve 500 `FUNCTION_INVOCATION_FAILED`: la función Python falla al invocarse (la captura no trae traza).
+- Se descartó localmente que sea un error de importación simple: `api/index.py` importa y expone la app con las dependencias del backend (ver entrada anterior). Hace falta el log de ejecución de Vercel para ubicar la causa; se le pidió al usuario.
+
+## Prompt: "ah esta usando plantilla de fastapi. como arreglo?"
+
+**Acciones realizadas:**
+- Diagnóstico del usuario: el proyecto de Vercel quedó con el Framework Preset "FastAPI", que trata todo el proyecto como una app FastAPI e ignora el build del frontend (`buildCommand`/`outputDirectory`), de modo que `/` también lo sirve la función.
+- Cambio: se agregó `"framework": null` a `tp-final/vercel.json` (equivale a elegir "Other" en Settings → Build & Development Settings). Sin desplegar ni ejecutar nada contra Neon.
