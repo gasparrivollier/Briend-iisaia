@@ -544,3 +544,42 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 ## Prompt: "como era la contraseña para iniciar sesion?"
 
 **Acciones realizadas:** sólo respuesta, sin cambios de código: usuario `admin` y contraseña inicial `Proyecto1` (la que crea `init-db` en una base vacía, y que el sistema obliga a cambiar en el primer ingreso); los usuarios del archivo de ejemplo `recursos.txt` usan `Cambiar1234`, también con cambio obligatorio al ingresar.
+
+## Prompt: "can you send this tp-final to claude design? so we generate a powerpoint presentation"
+
+**Acciones realizadas:**
+- Se entró en modo plan. Se invocó la skill `superpowers:brainstorming`; se clasificó la tarea como "spike" (el resultado es una presentación, no código).
+- Se detectó que el servidor MCP `claude-design` falló al conectar (HTTP 403: el token de `/login` no tiene acceso a Claude Design). Se avisó al usuario que debe ejecutar `/design-login` antes de reintentar.
+- Preguntas y respuestas: público/idioma → "Final defense, Spanish"; ruta → "You run /design-login, then I retry".
+- Se leyeron (solo lectura) `README.md` y el final de `prompts.md` para armar el plan.
+- Se escribió el plan en `/home/gaspi/.claude/plans/majestic-coalescing-gem.md` (deck de ~12 diapositivas en español) y el usuario lo aprobó.
+- Se agregó esta entrada a `prompts.md`. Pendiente: que el usuario ejecute `/design-login`; luego se cargará `DesignSync` y se enviará el material (sin `.env`, credenciales ni `instance/`).
+
+## Prompt: "go ahead" (tras /design-login)
+
+**Acciones realizadas:**
+- El usuario ejecutó `/design-login` ("Design-system access authorized"). El servidor MCP `claude-design` siguió figurando como fallido en la sesión; la herramienta `DesignSync` solo sirve para sincronizar sistemas de diseño y su descripción indica que las presentaciones se hacen con el tipo de Artifact "Slides".
+- Decisión: se usó `Artifact` con `quickstart` (intent `slides`) y se creó el artefacto https://claude.ai/artifact/3588yRRZGuDzzGPGH1zwQu ("Pulso - Defensa final") desde el tipo Slides.
+
+## Prompt: "a word of advice on this. the presentation needs to focus not only on the app itself (which we will demo) but also on the process of creating it (using claude code and codex). I would also highlight the collaboration between 2 people (using 2 dfferent ai harnesses)."
+
+**Acciones realizadas:**
+- Se interrumpió la generación para ajustar el esquema: la presentación cubre la app (con demo en vivo), el proceso de creación con Claude Code y Codex, y la colaboración entre dos personas con dos herramientas de IA.
+- Se leyó el repositorio (solo lectura): `git shortlog` (autores Gaspar Rivollier y Manuel Briend), ramas, 66 commits, 6 PRs, `HISTORIAL_DESARROLLO.md` (rama `codex/seguimiento-proyectos` en la versión Flask) y `CLAUDE.md`.
+- Pregunta: quién usó qué herramienta → respuesta: "Manuel = Codex, Gaspar = Claude Code".
+- Se escribió el deck de 14 diapositivas en español en el scratchpad y se publicó en el artefacto.
+- Resultado: deck de 14 diapositivas publicado (privado) en https://claude.ai/artifact/3588yRRZGuDzzGPGH1zwQu: portada, problema, tesis (app + proceso), equipo (Manuel/Codex, Gaspar/Claude Code), demo, arquitectura, seguridad, línea de tiempo, comparación de agentes, repositorio como memoria compartida, ejemplo de carga masiva, calidad, aprendizajes, cierre. No se verificó el render (no se pidió). Se creó por error un archivo vacío en una ruta /tmp mal escrita y se borró de inmediato.
+- Pendiente del usuario: completar los puntos entre corchetes en "Qué aprendimos", revisar la atribución Codex/Claude Code por fase y compartir el enlace si hace falta.
+
+## Prompt: "/design-sync"
+
+**Acciones realizadas:**
+- Se cargó la skill `design-sync` (sincroniza un repositorio de sistema de diseño React con un proyecto de claude.ai/design). Se comprobó solo lectura: no existe `.design-sync/`, no hay Storybook y el frontend usa Vue 3 (no React) con CSS propio, sin kit de componentes.
+- No se creó ningún proyecto ni se subió nada. Se consultó al usuario cómo seguir (ver respuesta abajo).
+- El usuario rechazó la pregunta sobre cómo seguir con `/design-sync` (la skill no aplica: el frontend es Vue sin kit de componentes React ni Storybook; no se creó ni subió nada).
+
+## Prompt: "try again. generate artifact from scratch" (tras otro /design-login)
+
+**Acciones realizadas:**
+- Se volvió a comprobar el servidor `claude-design`: sigue figurando como fallido (HTTP 403) en esta sesión.
+- Se creó un artefacto Slides nuevo (https://claude.ai/artifact/SDqLZpNuLpgXdJBMnFuyAs, "Pulso - Defensa final v2") y se publicaron en él las mismas 14 diapositivas y el índice `deck.json`. El artefacto anterior (3588yRRZGuDzzGPGH1zwQu) no se tocó ni se borró.
