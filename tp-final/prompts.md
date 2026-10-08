@@ -540,3 +540,7 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 
 **Acciones realizadas:**
 - Se generaron los archivos de ejemplo que faltaban en `docs/ejemplos-carga-masiva/`: `tareas.csv` (separado por `;` y fechas `DD/MM/AAAA`, estilo Excel en español) y `consumos.xlsx` (fechas reales de Excel), consistentes con los proyectos, usuarios y roles de los tres archivos anteriores. Se verificó la cadena completa de cinco archivos con una prueba temporal contra la API sobre una base temporal (la prueba se borró) y se actualizó el README de la carpeta.
+
+## Prompt: "como era la contraseña para iniciar sesion?"
+
+**Acciones realizadas:** sólo respuesta, sin cambios de código: usuario `admin` y contraseña inicial `Proyecto1` (la que crea `init-db` en una base vacía, y que el sistema obliga a cambiar en el primer ingreso); los usuarios del archivo de ejemplo `recursos.txt` usan `Cambiar1234`, también con cambio obligatorio al ingresar.
