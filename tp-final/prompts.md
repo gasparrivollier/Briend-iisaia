@@ -535,3 +535,8 @@ Se preguntó al usuario cómo manejar la evidencia de Git que pide el curso (ram
 
 **Acciones realizadas:**
 - Se eligió una cadena coherente de tres archivos de ejemplo, uno por extensión, que se pueden cargar en orden de dependencias sobre una base de desarrollo: `roles.csv` (Roles), `recursos.txt` (Recursos, separado por tabuladores) y `proyectos.xlsx` (Proyectos, con los responsables creados por el archivo anterior). Se guardan en `docs/ejemplos-carga-masiva/`.
+
+## Prompt: "generate those files too"
+
+**Acciones realizadas:**
+- Se generaron los archivos de ejemplo que faltaban en `docs/ejemplos-carga-masiva/`: `tareas.csv` (separado por `;` y fechas `DD/MM/AAAA`, estilo Excel en español) y `consumos.xlsx` (fechas reales de Excel), consistentes con los proyectos, usuarios y roles de los tres archivos anteriores. Se verificó la cadena completa de cinco archivos con una prueba temporal contra la API sobre una base temporal (la prueba se borró) y se actualizó el README de la carpeta.
