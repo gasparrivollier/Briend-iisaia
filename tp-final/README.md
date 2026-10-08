@@ -190,7 +190,7 @@ Las sesiones viven en la base de datos; no requieren una clave de firma. Para ce
 
 ```bash
 docker compose up -d db                         # las pruebas del backend crean bases temporales en este Postgres
-cd backend && uv run pytest -q                  # 196 pruebas: contrato, permisos, CSRF, validación, integridad, tareas, carga masiva, migraciones
+cd backend && uv run pytest -q                  # 215 pruebas: contrato, permisos, CSRF, validación, integridad, tareas, carga masiva, migraciones
 uv run ruff check . && uv run ruff format --check .
 cd ../frontend && npm test                      # Vitest: cliente HTTP, escape, permisos, navegación, mapeo del Gantt (con TZ de Buenos Aires)
 npx playwright install chromium && npm run test:e2e   # Playwright: flujos completos sobre API + base e2e aislada

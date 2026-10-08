@@ -168,4 +168,7 @@ Límites conocidos (de las revisiones):
 - Los datos posteriores a más de 10 000 filas vacías consecutivas en una hoja se ignoran.
 - Los consumos idénticos a uno existente solo generan advertencia.
 - Confirmar con errores pendientes responde 200 con `confirmada: false`.
+- Volver a subir un archivo duplica proyectos y tareas; solo se advierte (los nombres no son únicos).
+
+Revisión final: se endurecieron los límites del parseo (dimensión declarada, 100 columnas, 50 MiB descomprimidos, caracteres nulos), nombre e id deben coincidir, los puntos de miles se interpretan, y se agregaron las advertencias de repetidos y el mensaje del 413. Ver `docs/VALIDACION.md`.
 
